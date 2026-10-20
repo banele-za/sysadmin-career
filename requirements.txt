@@ -1,0 +1,4 @@
+asyncssh==2.24.1
+pywebview==6.2.1
+PyYAML==6.0.3
+pytest==9.1.1

@@ -1,0 +1,7 @@
+# Display names for the `character:` field of tickets.
+mentor:
+  name: Senior Admin
+  role: Your mentor
+gary:
+  name: Gary
+  role: Accounting

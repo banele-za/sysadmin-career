@@ -1,0 +1,105 @@
+:root {
+  color-scheme: dark;          /* dark scrollbars, including xterm's */
+  --bg: #14161a;
+  --panel: #1c1f25;
+  --line: #2b2f37;
+  --text: #d7dae0;
+  --dim: #8a909c;
+  --accent: #5fb3ff;
+  --good: #5fd48a;
+  --bad: #ff6b6b;
+  --warn: #f0b85a;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font: 14px/1.5 "Segoe UI", system-ui, sans-serif;
+  display: flex;
+  flex-direction: column;
+}
+.dim { color: var(--dim); }
+[hidden] { display: none !important; }
+
+/* ---- top bar ---- */
+.topbar {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 16px; border-bottom: 1px solid var(--line);
+}
+.brand { font-family: Consolas, monospace; font-weight: 600; }
+.stats { display: flex; gap: 16px; align-items: center; }
+.stat b { color: var(--accent); font-variant-numeric: tabular-nums; }
+.stat.bump b { color: var(--good); transition: color .2s; }
+.badge { font-size: 12px; padding: 2px 8px; border-radius: 10px; border: 1px solid var(--line); }
+.badge.slow { color: var(--warn); border-color: var(--warn); }
+.badge.fast { color: var(--good); border-color: var(--good); }
+
+/* ---- layout ---- */
+.layout { flex: 1; display: flex; min-height: 0; }
+.terminal-pane { flex: 1; position: relative; min-width: 0; padding: 8px; }
+#terminal { position: absolute; inset: 8px; }
+/* Dark scrollbars everywhere (Chromium/WebView2 syntax). */
+::-webkit-scrollbar { width: 10px; background: var(--bg); }
+::-webkit-scrollbar-thumb { background: #3a3f48; border-radius: 5px; }
+::-webkit-scrollbar-thumb:hover { background: #4a505b; }
+.side {
+  width: 380px; display: flex; flex-direction: column; gap: 8px;
+  padding: 8px 8px 8px 0; min-height: 0;
+}
+.panel {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 6px;
+  padding: 12px 14px; overflow: auto;
+}
+.panel-title { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--dim); margin-bottom: 6px; }
+.ticket { flex: 0 1 auto; max-height: 55%; }
+.mentor { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+
+/* ---- ticket ---- */
+.ticket h2 { font-size: 17px; margin: 0 0 4px; }
+.from { font-size: 13px; margin-bottom: 8px; }
+#ticket-narrative { white-space: pre-wrap; margin: 0 0 8px; }
+.reward { font-size: 12px; margin-bottom: 8px; }
+.checks { list-style: none; padding: 0; margin: 0 0 10px; font-size: 13px; }
+.checks li { padding: 2px 0 2px 22px; position: relative; }
+.checks li::before { position: absolute; left: 2px; }
+.checks li.pass::before { content: "✓"; color: var(--good); }
+.checks li.fail::before { content: "✗"; color: var(--bad); }
+.checks li.banner { padding-left: 0; font-weight: 600; }
+.checks li.banner::before { content: none; }
+.checks li.banner.pass { color: var(--good); }
+.checks li.banner.fail { color: var(--bad); }
+.actions { display: flex; gap: 8px; }
+button {
+  font: inherit; color: var(--text); background: #2a2f38;
+  border: 1px solid var(--line); border-radius: 4px; padding: 6px 14px; cursor: pointer;
+}
+button:hover:not(:disabled) { border-color: var(--accent); }
+button:disabled { opacity: .5; cursor: default; }
+button.primary { background: #1f4d7a; border-color: #2c6aa6; }
+
+/* ---- mentor chat ---- */
+.chat { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+.msg { background: #232831; border-radius: 6px; padding: 8px 10px; }
+.msg.done { opacity: .6; }
+.msg .who { font-size: 12px; color: var(--accent); margin-bottom: 2px; }
+.msg p { margin: 0 0 6px; }
+.msg p:last-child { margin-bottom: 0; }
+.msg code { font-family: Consolas, monospace; background: #14161a; padding: 0 4px; border-radius: 3px; }
+.msg pre { font-family: Consolas, monospace; background: #14161a; padding: 6px 8px; margin: 4px 0 6px; border-radius: 4px; white-space: pre-wrap; }
+.msg button { margin-top: 4px; }
+
+/* ---- loading overlay ---- */
+.overlay {
+  position: absolute; inset: 8px; display: flex; flex-direction: column; gap: 14px;
+  align-items: center; justify-content: center; background: rgba(20,22,26,.92);
+  border-radius: 6px; color: var(--dim);
+}
+.spinner {
+  width: 28px; height: 28px; border: 3px solid var(--line);
+  border-top-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.overlay.error { color: var(--bad); }
+.overlay.error .spinner { display: none; }

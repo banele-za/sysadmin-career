@@ -1,0 +1,13 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Image build: downloads, built images and the game's private SSH keys
+images/cache/
+images/out/
+
+# Local runtime data when SYSADMIN_GAME_DATA points inside the repo
+data/
+images/build.log

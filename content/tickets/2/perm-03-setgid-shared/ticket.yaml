@@ -1,0 +1,31 @@
+id: perm-03-setgid-shared
+title: "The finance folder is a mess again"
+tier: 2
+skill: permissions
+level: 3                      # position on the skill ladder
+objectives: [perm.ugo, perm.shared-dirs]
+character: gary
+tracks: [rhel, suse]
+params:
+  group: { pick: [finance, payroll, audit] }
+  dir: "/srv/{group}"
+  users: { pick_n: 2, from: [alice, bob, carol, dan] }
+narrative: |
+  Gary says nobody can edit each other's files in {dir}.
+  He tried chmod 777. It "sort of worked" until IT made him stop.
+
+  Make {dir} a proper shared folder: everyone in the {group} group
+  ({users}) must be able to edit each other's files, including new ones
+  created from now on and the reports already in there. People outside
+  {group}, Gary included, shouldn't be able to get in at all.
+mentor_steps: []              # unguided ticket
+# On RHEL 10 users get umask 022, so a setgid folder alone isn't enough:
+# new files arrive without group write. That's the "+ umask" part of level 3.
+# A default ACL (setfacl -d) also works and passes; that's level 4 material.
+hints:
+  - "Files created in a folder normally get their creator's group. A setgid folder hands its own group to new files instead."
+  - "Having the right group isn't enough if files are created without group write permission. Check the users' umask, and the reports already in there."
+  - "chgrp -R {group} {dir}; chmod 2770 {dir}; chmod g+w {dir}/*; then add 'umask 002' to each user's ~/.bashrc"
+requires_reboot: false
+time_limit: null
+rewards: { xp: 40, rep: 15 }

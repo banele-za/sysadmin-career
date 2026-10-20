@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Sysadmin Career</title>
+  <link rel="stylesheet" href="vendor/xterm/xterm.css">
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">srv01 <span class="dim">· help desk</span></div>
+    <div class="stats">
+      <span id="mode-badge" class="badge" hidden></span>
+      <span class="stat">XP <b id="xp">0</b></span>
+      <span class="stat">Rep <b id="rep">0</b></span>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="terminal-pane">
+      <div id="terminal"></div>
+      <div id="overlay" class="overlay">
+        <div class="spinner"></div>
+        <div id="overlay-text">Starting...</div>
+      </div>
+    </section>
+
+    <aside class="side">
+      <section class="panel ticket" id="ticket-panel">
+        <div class="panel-title">Ticket</div>
+        <div id="ticket-empty" class="dim">Waiting for the server...</div>
+        <div id="ticket-body" hidden>
+          <h2 id="ticket-title"></h2>
+          <div class="from">From <b id="ticket-from"></b> <span id="ticket-role" class="dim"></span></div>
+          <p id="ticket-narrative"></p>
+          <div class="reward dim" id="ticket-reward"></div>
+          <ul id="checks" class="checks"></ul>
+          <div class="actions">
+            <button id="submit-btn" class="primary">Submit</button>
+            <button id="next-btn" hidden>Next ticket →</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel mentor" id="mentor-panel">
+        <div class="panel-title">Mentor chat</div>
+        <div id="chat" class="chat">
+          <div class="dim">The senior admin will chime in on tutorial tickets.</div>
+        </div>
+      </section>
+    </aside>
+  </main>
+
+  <script src="vendor/xterm/xterm.js"></script>
+  <script src="vendor/xterm/addon-fit.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

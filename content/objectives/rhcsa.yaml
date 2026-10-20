@@ -1,0 +1,17 @@
+# RHCSA objective keys referenced by tickets.
+# PROVISIONAL: only the keys Milestone 1 needs, paraphrased from the public
+# EX200 objective list. Rebuild this file from the official list before
+# writing more content (open question in docs/DESIGN.md).
+
+shell.commands:
+  title: "Access a shell prompt and issue commands with correct syntax"
+  area: Understand and use essential tools
+files.manage:
+  title: "Create, delete, copy, and move files and directories"
+  area: Understand and use essential tools
+perm.ugo:
+  title: "List, set, and change standard ugo/rwx permissions"
+  area: Understand and use essential tools
+perm.shared-dirs:
+  title: "Create and configure set-GID directories for collaboration"
+  area: Manage users and groups

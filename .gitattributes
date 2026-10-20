@@ -1,0 +1,4 @@
+# Bash and cloud-init files run inside Linux: always LF line endings.
+*.sh        text eol=lf
+*.yaml      text eol=lf
+images/cloud-init/*  text eol=lf

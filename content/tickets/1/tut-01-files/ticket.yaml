@@ -1,0 +1,81 @@
+id: tut-01-files
+title: "Day one: find your way around"
+tier: 1
+skill: files
+level: 1
+objectives: [shell.commands, files.manage]
+character: mentor
+tracks: [rhel, suse]
+params:
+  codeword: { pick: [penguin, kernel, daemon, uptime] }
+  home_dir: /home/admin
+narrative: |
+  Welcome to the help desk! Before the tickets start piling up, I've left
+  some onboarding files in {home_dir}/onboarding. Follow along in the chat
+  and I'll show you the basics.
+
+# Guided ticket: the mentor walks the player through each step.
+# `check` is Bash run as root every few seconds; exit 0 = step done.
+# A step without a check shows a "Got it" button instead.
+mentor_steps:
+  - say: |
+      Hi, I'm the senior admin here. That black box on the left is a
+      terminal: a shell running on our server, srv01. Type a command and
+      press Enter.
+
+      Try `pwd` (print working directory) to see where you are, then
+      `ls -l` to list what's here. Click "Got it" when you've had a look.
+  - say: |
+      You're in your home folder, {home_dir}. Let's make a place for notes:
+
+          mkdir notes
+
+      Then `ls -l` again and you'll see it.
+    check: test -d "$HOME_DIR/notes"
+  - say: |
+      Now look at the onboarding files. `cd` moves you into a folder:
+
+          cd onboarding
+          ls -l
+
+      Copy welcome.txt into your notes folder. `..` means "one folder up":
+
+          cp welcome.txt ../notes/
+    # Also accept the renamed copy: checks must stay true after later steps,
+    # or a fast player who does two steps between polls leaves the mentor stuck.
+    check: >-
+      cmp -s "$HOME_DIR/onboarding/welcome.txt" "$HOME_DIR/notes/welcome.txt" ||
+      cmp -s "$HOME_DIR/onboarding/welcome.txt" "$HOME_DIR/notes/$CODEWORD.txt"
+  - say: |
+      Read the file with `cat welcome.txt`. There's a codeword inside.
+
+      `mv` both moves and renames. Rename your copy to the codeword plus
+      .txt, for example:
+
+          mv ../notes/welcome.txt ../notes/CODEWORD.txt
+
+      (use the real codeword, in lowercase)
+    check: test -f "$HOME_DIR/notes/$CODEWORD.txt" && ! test -e "$HOME_DIR/notes/welcome.txt"
+  - say: |
+      Someone left a junk file, DELETE-ME.tmp, in onboarding. Remove it:
+
+          rm DELETE-ME.tmp
+
+      Careful: Linux has no recycle bin. `rm` is forever.
+    check: "! test -e $HOME_DIR/onboarding/DELETE-ME.tmp"
+  - say: |
+      Last thing, and the most useful habit you'll learn here: when you
+      don't know a command, ask the manual. Try `man ls` (press q to quit)
+      or `ls --help`. The real exams let you use man pages too.
+
+      Finish by creating an empty file named `done` in your notes folder.
+      The `touch` command makes empty files. Then press Submit.
+    check: test -f "$HOME_DIR/notes/done"
+
+hints:
+  - "Each mentor message tells you the exact command. Re-read the latest one."
+  - "Use `ls -l` after each step to see what changed."
+  - "mkdir ~/notes; cp ~/onboarding/welcome.txt ~/notes/; mv ~/notes/welcome.txt ~/notes/{codeword}.txt; rm ~/onboarding/DELETE-ME.tmp; touch ~/notes/done"
+requires_reboot: false
+time_limit: null
+rewards: { xp: 20, rep: 5 }

@@ -1,0 +1,57 @@
+#cloud-config
+# Applied once, on the first boot of the image build (images/build_rhel.py).
+# $root_pubkey and $player_pubkey are filled in by the build script.
+
+hostname: srv01
+fqdn: srv01.corp.example
+
+# Don't create the cloud image's default "almalinux" user; we define our own.
+users:
+  - name: admin
+    gecos: Help Desk Admin
+    groups: [wheel]
+    sudo: "ALL=(ALL) NOPASSWD:ALL"
+    shell: /bin/bash
+    lock_passwd: true
+    ssh_authorized_keys:
+      - $player_pubkey
+
+# Allow root to log in with the game's key (never with a password).
+disable_root: false
+ssh_pwauth: false
+
+write_files:
+  - path: /root/.ssh/authorized_keys
+    permissions: "0600"
+    content: |
+      $root_pubkey
+  - path: /etc/ssh/sshd_config.d/50-sysadmin-game.conf
+    content: |
+      PermitRootLogin prohibit-password
+      PasswordAuthentication no
+      UseDNS no
+
+# Tools the tickets rely on. Man pages matter: the game rewards using them.
+packages:
+  - man-db
+  - man-pages
+  - tar
+  - vim-enhanced
+  - bash-completion
+  - tree
+
+runcmd:
+  # Files written by cloud-init need the right SELinux label or sshd ignores them.
+  - restorecon -R /root/.ssh
+  - systemctl enable sshd
+  # Kernel and login prompt on the serial port, so serial.log shows boot problems.
+  - grubby --update-kernel=ALL --args="console=tty0 console=ttyS0,115200"
+  - systemctl enable serial-getty@ttyS0
+  # The game's VM must never reconfigure itself again on later boots.
+  - touch /etc/cloud/cloud-init.disabled
+  - dnf clean all
+  - echo SYSADMIN-GAME-BUILD-OK > /dev/ttyS0
+
+power_state:
+  mode: poweroff
+  timeout: 60
