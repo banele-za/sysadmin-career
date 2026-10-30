@@ -4,7 +4,7 @@ Pure logic, no measuring (that's facts.py), so every case is unit-testable.
 
 The design doc's promise: nobody is locked out. Missing hardware
 acceleration is never a dead end, it means slow mode. Only things the game
-truly can't work around are "blocking": not enough disk, or no image.
+truly can't work around are "blocking": no QEMU, not enough disk, or no image.
 
 The smoke test has the final word. If QEMU runs with acceleration, the
 virtualization checks are green no matter what Windows' flags say (on this
@@ -24,6 +24,7 @@ ACTION_LABELS = {
     "enable_feature": "Turn it on",
     "bios_guide": "Show me how",
     "kvm_fix": "Fix it",
+    "install_qemu": "Install it",
     "download": "Download",
     "retry": "Check again",
 }
@@ -64,7 +65,7 @@ class Checkup:
 
 
 def evaluate(f: Facts) -> Checkup:
-    checks = []
+    checks = [_qemu(f)]
     if f.platform == "win32":
         checks.append(_windows_feature(f))
     checks.append(_firmware(f))
@@ -85,6 +86,21 @@ def evaluate(f: Facts) -> Checkup:
 
 
 # ---- the checks --------------------------------------------------------------
+
+def _qemu(f: Facts) -> Check:
+    title = "Virtual machine program (QEMU)"
+    if f.qemu_found:
+        return Check("qemu", title, GREEN, "Installed.")
+    if f.platform.startswith("linux"):
+        return Check("qemu", title, RED,
+                     "The game runs its Linux server with QEMU, which isn't installed yet.",
+                     actions=["install_qemu", "retry"], blocking=True)
+    # Windows builds ship QEMU inside the game folder, so it's only missing if
+    # that folder is damaged (or a developer hasn't installed it).
+    return Check("qemu", title, RED,
+                 "QEMU is missing from the game's folder. Reinstalling the game fixes this.",
+                 actions=["retry"], blocking=True)
+
 
 def _windows_feature(f: Facts) -> Check:
     title = "Windows virtualization setting"

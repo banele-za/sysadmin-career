@@ -1,27 +1,51 @@
 """Make sure QEMU never outlives the game.
 
 If the game crashes or is killed, a normal child process keeps running:
-a hidden VM holding 2 GB of RAM and locking its disk file. On Windows we
-put every QEMU into a "job object" with KILL_ON_JOB_CLOSE: when the game's
-process ends (for any reason), Windows closes the job and kills everything
-in it. On other systems this does nothing (yet).
+a hidden VM holding 2 GB of RAM and locking its disk file. So QEMU is
+always started through start() here, which ties it to the game:
+
+  Windows: every QEMU goes into a "job object" with KILL_ON_JOB_CLOSE. When
+           the game's process ends (for any reason), Windows closes the job
+           and kills everything in it.
+  Linux:   the child asks the kernel (prctl PR_SET_PDEATHSIG) to be sent
+           SIGKILL when its parent dies. This has to happen inside the new
+           process before QEMU starts, hence preexec_fn.
 """
 
+import logging
 import subprocess
-import sys
 
-_job = None    # one job for the whole game; created on first use
+from client import host
+
+log = logging.getLogger(__name__)
+_job = None    # Windows: one job for the whole game; created on first use
 
 
-def attach(proc: subprocess.Popen) -> None:
-    """Tie `proc`'s lifetime to this Python process (Windows only)."""
-    if sys.platform != "win32":
-        return
-    try:
-        _attach_windows(proc)
-    except OSError as e:
-        # Not fatal: the VM still runs, it just won't be cleaned up after a crash.
-        print(f"warning: couldn't attach QEMU to the job object: {e}")
+def start(cmd: list[str], **kwargs) -> subprocess.Popen:
+    """subprocess.Popen, but the process dies when the game does."""
+    if host.LINUX:
+        kwargs["preexec_fn"] = _die_with_parent
+    proc = subprocess.Popen(cmd, **host.NO_WINDOW, **kwargs)
+    if host.WINDOWS:
+        try:
+            _attach_windows(proc)
+        except OSError as e:
+            # Not fatal: the VM still runs, it just won't be cleaned up after a crash.
+            log.warning("couldn't attach QEMU to the job object: %s", e)
+    return proc
+
+
+def _die_with_parent() -> None:
+    """Runs in the child just before QEMU replaces it (Linux only).
+
+    Caveat: "parent" means the *thread* that started the child. QEMU is
+    started from the game's event-loop thread, which lives as long as the game.
+    """
+    import ctypes
+    import signal
+    PR_SET_PDEATHSIG = 1
+    libc = ctypes.CDLL(None, use_errno=True)
+    libc.prctl(PR_SET_PDEATHSIG, signal.SIGKILL)
 
 
 def _attach_windows(proc: subprocess.Popen) -> None:

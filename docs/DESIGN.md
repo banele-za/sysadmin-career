@@ -244,6 +244,7 @@ Build a thin working slice first, then scale content; each milestone ends with s
 1. **M1: Vertical slice (one platform, Red Hat track).** Image build script, QEMU launch with snapshot reset, SSH terminal in the pywebview window, ticket loader, one tutorial ticket + one unguided ticket with graders, XP and reputation counters, save file.
 2. **M2: First-run experience.** Full checkup, one-click fixes, BIOS guide pages (placeholder art), slow mode, diagnostic report. Tested on a fresh Windows laptop.
 3. **M3: Cross-platform.** Windows (WHPX), Mac (HVF, aarch64 image), Linux (KVM). Packaged builds for each.
+   *Decided Oct 30, 2026: Mac is dropped for now (no Mac to test on). M3 covers Windows (bundled QEMU, installer) and Linux (the distro's QEMU, installed from the checkup with one click; AppImage).*
 4. **M4: Tier 1 content + story.** Full help desk tier, mentor tutorials, Gary and the Intern, hints.
 5. **M5: Progression systems.** Mastery ranks, skill decay scheduling, compound tickets, automation unlocks, exam readiness screen.
 6. **M6: SUSE track.** Second image, per-track ticket variants, AppArmor and Btrfs content.

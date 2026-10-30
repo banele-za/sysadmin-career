@@ -1,7 +1,8 @@
 """Game entry point: opens the window and runs the game.
 
 Run from the repo root:
-    .venv\\Scripts\\python -m client.app            (add --software to force slow mode)
+    .venv\\Scripts\\python -m client.app            (Windows; add --software to force slow mode)
+    .venv/bin/python -m client.app                (Linux)
 
 Threads:
   main thread    - pywebview's window (GUI toolkits insist on the main thread)
@@ -18,12 +19,11 @@ import asyncio
 import json
 import logging
 import queue
-import sys
 import threading
 
 import webview
 
-from client import config
+from client import config, host
 from client.game import Game
 
 
@@ -140,13 +140,9 @@ def _window_geometry() -> tuple[int, int, int, int]:
 
 def _work_area() -> tuple[int, int, int, int]:
     """(left, top, width, height) of the primary screen minus the taskbar."""
-    if sys.platform == "win32":
-        import ctypes
-        from ctypes import wintypes
-        rect = wintypes.RECT()
-        SPI_GETWORKAREA = 0x0030
-        if ctypes.windll.user32.SystemParametersInfoW(SPI_GETWORKAREA, 0, ctypes.byref(rect), 0):
-            return rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top
+    area = host.work_area()
+    if area:
+        return area
     try:
         screen = webview.screens[0]
         return 0, 0, screen.width, screen.height

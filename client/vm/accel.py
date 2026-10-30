@@ -1,7 +1,7 @@
 """Pick the fastest way to run the VM on this computer.
 
 Hardware acceleration lets the VM run at near-native speed:
-  Windows -> WHPX, Linux -> KVM, macOS -> HVF.
+  Windows -> WHPX, Linux -> KVM.
 If none works we fall back to TCG, QEMU's pure software CPU emulator
 ("slow mode" in the design doc). It always works, just 10-20x slower.
 
@@ -10,10 +10,9 @@ QEMU with the accelerator for a moment and see whether it stays up.
 """
 
 import subprocess
-import sys
 from dataclasses import dataclass
 
-from client import config
+from client import config, host
 
 
 @dataclass
@@ -30,12 +29,10 @@ SOFTWARE = Accel(name="tcg", cpu="max", hardware=False)
 
 def hardware_candidate() -> Accel | None:
     """The accelerator for this OS (not yet tested; see detect)."""
-    if sys.platform == "win32":
+    if host.WINDOWS:
         return Accel(name="whpx", cpu="host", hardware=True)
-    if sys.platform.startswith("linux"):
+    if host.LINUX:
         return Accel(name="kvm", cpu="host", hardware=True)
-    if sys.platform == "darwin":
-        return Accel(name="hvf", cpu="host", hardware=True)
     return None
 
 
@@ -47,7 +44,7 @@ def _probe(accel: Accel, seconds: float = 2.0) -> bool:
         "-machine", "q35", "-m", "128",
         "-display", "none", "-nodefaults",
     ]
-    proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, **host.NO_WINDOW)
     try:
         proc.wait(timeout=seconds)
         return False          # it exited on its own: the accelerator failed

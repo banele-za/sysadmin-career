@@ -5,11 +5,10 @@ pass to QEMU and why, in one place.
 """
 
 import socket
-import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from client import config
+from client import config, host
 from client.vm.accel import Accel
 
 
@@ -76,7 +75,7 @@ def create_overlay(base: Path, overlay: Path) -> None:
     factory reset.
     """
     overlay.parent.mkdir(parents=True, exist_ok=True)
-    subprocess.run(
+    host.run(
         [str(config.qemu_binary("qemu-img")), "create", "-q", "-f", "qcow2",
          "-b", str(base), "-F", "qcow2", str(overlay)],
         check=True,
@@ -85,7 +84,7 @@ def create_overlay(base: Path, overlay: Path) -> None:
 
 def list_snapshots(disk: Path) -> list[str]:
     """Names of the internal snapshots in a qcow2 file (VM must be stopped)."""
-    out = subprocess.run(
+    out = host.run(
         [str(config.qemu_binary("qemu-img")), "snapshot", "-l", str(disk)],
         check=True, capture_output=True, text=True,
     ).stdout

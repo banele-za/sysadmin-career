@@ -36,7 +36,7 @@ launch, when something blocks the game, or when fast mode stops working; the
 Test the unhappy paths without breaking your PC:
 
 ```powershell
-$env:SYSADMIN_GAME_FAKE = "bios-off,low-ram"   # also: feature-off, tiny-ram, low-disk, no-image, offline
+$env:SYSADMIN_GAME_FAKE = "bios-off,low-ram"   # also: feature-off, tiny-ram, low-disk, no-image, offline, no-qemu, kvm-denied
 $env:SYSADMIN_GAME_DATA = "$env:TEMP\sg-test"  # a throwaway save, so the first-run screen shows
 .venv\Scripts\python -m client.app
 ```
@@ -45,8 +45,10 @@ While faking, the fixes only describe what they would do. To test on a
 second PC, follow [docs/FRESH-LAPTOP-TEST.md](docs/FRESH-LAPTOP-TEST.md).
 
 Your save, the VM's working disks and `game.log` live in
-`%LOCALAPPDATA%\SysadminGame` (override with `SYSADMIN_GAME_DATA`). Delete
-`vm\` there for a factory-fresh VM.
+`%LOCALAPPDATA%\SysadminGame` on Windows and `~/.local/share/sysadmin-game`
+on Linux (override with `SYSADMIN_GAME_DATA`). Delete `vm` there for a
+factory-fresh VM. Everything that differs between Windows and Linux is in
+`client/host.py`.
 
 ## Publishing the image
 
@@ -122,3 +124,16 @@ No Python changes needed. The ticket.yaml format is in docs/DESIGN.md, plus:
   Prefer testing behaviour (`as_user alice "..."`) over exact modes, so
   every valid solution passes.
 - **`solution.sh`** is a reference fix used only by tests.
+
+## Licence
+
+- **Code** (everything outside the folders below) is free software under the
+  [GNU General Public License v3.0 or later](LICENSE): you may use, change
+  and share it, and versions you share must stay open under the same licence.
+- **Game content**: the tickets in `content/` and the BIOS guides in
+  `guides/` are under [Creative Commons Attribution-ShareAlike 4.0](LICENSE-CONTENT):
+  reuse them anywhere with credit, and share changes under the same terms.
+- **Other people's software** the game uses or downloads, and their
+  licences, are listed in [THIRD-PARTY.md](THIRD-PARTY.md).
+
+Copyright © 2026 Banele.

@@ -70,13 +70,10 @@ class _Machine:
             memory_mb=memory_mb,
             extra=["-loadvm", loadvm] if loadvm else [],
         )
-        # CREATE_NO_WINDOW stops a console window flashing up on Windows.
-        flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
         self.qemu_log.parent.mkdir(parents=True, exist_ok=True)
         with open(self.qemu_log, "w") as log:
-            self.proc = subprocess.Popen(qemu.command(spec), creationflags=flags,
-                                         stdout=log, stderr=subprocess.STDOUT)
-        childproc.attach(self.proc)   # if the game dies, Windows kills this QEMU too
+            # childproc.start: if the game dies, this QEMU dies with it.
+            self.proc = childproc.start(qemu.command(spec), stdout=log, stderr=subprocess.STDOUT)
         qmp = QMPClient()
         try:
             await qmp.connect(qmp_port)

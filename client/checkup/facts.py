@@ -19,6 +19,8 @@ of problems to pretend this PC has, e.g.
   low-disk     only 1 GB free
   no-image     the Linux image hasn't been downloaded yet
   offline      the download server can't be reached
+  no-qemu      QEMU isn't installed (Linux: offers the one-click install)
+  kvm-denied   Linux: /dev/kvm exists but this user may not use it
 """
 
 import json
@@ -29,16 +31,17 @@ import sys
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass, field
 
-from client import config
+from client import config, host
 from client.vm import accel
 
-FAKE_PROBLEMS = {"feature-off", "bios-off", "low-ram", "tiny-ram", "low-disk", "no-image", "offline"}
+FAKE_PROBLEMS = {"feature-off", "bios-off", "low-ram", "tiny-ram", "low-disk", "no-image",
+                 "offline", "no-qemu", "kvm-denied"}
 GB = 1024 ** 3
 
 
 @dataclass
 class Facts:
-    platform: str                          # "win32", "linux", "darwin"
+    platform: str                          # sys.platform: "win32" or "linux"
     os_name: str = ""
     manufacturer: str = ""                 # PC maker, picks the BIOS guide
     model: str = ""
@@ -52,6 +55,7 @@ class Facts:
     windows_features: dict = field(default_factory=dict)  # name -> "enabled" / "disabled" / "absent"
     kvm_exists: bool | None = None         # Linux
     kvm_accessible: bool | None = None     # Linux
+    qemu_found: bool = True                # the program that runs the VM (Linux: a distro package)
     # Image and download.
     image_present: bool = False
     download_configured: bool = False
@@ -86,6 +90,7 @@ def gather() -> Facts:
         _apply_system(facts, system.result())
         facts.smoke_ok, facts.smoke_accel, facts.smoke_error = smoke.result()
         facts.download_configured, facts.download_reachable, facts.download_size_bytes = download.result()
+    facts.qemu_found = _qemu_found()
     facts.image_present = config.BASE_IMAGE.exists() and config.ROOT_KEY.exists()
     facts.disk_free_bytes = shutil.disk_usage(_existing_parent(config.DATA_DIR)).free
     _apply_fakes(facts, fake_problems())
@@ -117,32 +122,39 @@ foreach ($name in 'HypervisorPlatform', 'VirtualMachinePlatform', 'Microsoft-Hyp
 
 
 def _system_info() -> dict:
-    if sys.platform == "win32":
+    if host.WINDOWS:
         return _windows_info()
-    return _posix_info()
+    return _linux_info()
 
 
 def _windows_info() -> dict:
     try:
-        out = subprocess.run(
+        out = host.run(
             ["powershell", "-NoProfile", "-NonInteractive", "-Command", _WMI_SCRIPT],
             capture_output=True, text=True, timeout=30,
-            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
         ).stdout
         return json.loads(out)
     except (OSError, subprocess.TimeoutExpired, json.JSONDecodeError):
         return {}     # unknown facts stay None; the smoke test still decides
 
 
-def _posix_info() -> dict:
-    info: dict = {"os_name": f"{sys.platform} {os.uname().release}"}
+def _linux_info() -> dict:
+    """The same facts as _WMI_SCRIPT, from Linux's own files."""
+    release = host.os_release()
+    cpu, vendor, _flags = host.cpu_info()
+    info: dict = {
+        "os_name": f"{release.get('PRETTY_NAME', 'Linux')} (kernel {os.uname().release})",
+        # The firmware's own description of the PC; readable by any user.
+        "manufacturer": host.read_text("/sys/class/dmi/id/sys_vendor"),
+        "model": host.read_text("/sys/class/dmi/id/product_name"),
+        "cpu": cpu, "cpu_vendor": vendor,          # "GenuineIntel" / "AuthenticAMD"
+        "kvm_exists": os.path.exists("/dev/kvm"),
+        "kvm_accessible": os.access("/dev/kvm", os.R_OK | os.W_OK),
+    }
     try:
         info["ram"] = os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES")
     except (ValueError, OSError):
         pass
-    if sys.platform.startswith("linux"):
-        info["kvm_exists"] = os.path.exists("/dev/kvm")
-        info["kvm_accessible"] = os.access("/dev/kvm", os.R_OK | os.W_OK)
     return info
 
 
@@ -163,11 +175,19 @@ def _apply_system(facts: Facts, info: dict) -> None:
     facts.kvm_accessible = info.get("kvm_accessible")
 
 
+def _qemu_found() -> bool:
+    try:
+        config.find_qemu_dir()
+        return True
+    except FileNotFoundError:
+        return False
+
+
 def _smoke_test() -> tuple[bool, str, str]:
     """Start QEMU with hardware acceleration for a moment (see vm/accel.py)."""
     try:
         chosen = accel.detect()
-    except FileNotFoundError as e:       # QEMU itself is missing
+    except FileNotFoundError as e:       # QEMU itself is missing (the qemu check says so)
         return False, "", str(e)
     if chosen.hardware:
         return True, chosen.name, ""
@@ -213,4 +233,11 @@ def _apply_fakes(facts: Facts, problems: set[str]) -> None:
         facts.image_present = False
     if "offline" in problems:
         facts.download_configured, facts.download_reachable = True, False
+    if "no-qemu" in problems:
+        facts.qemu_found = False
+        facts.smoke_ok, facts.smoke_accel = False, ""
+        facts.smoke_error = "faked by SYSADMIN_GAME_FAKE"
+    if "kvm-denied" in problems:
+        facts.kvm_exists, facts.kvm_accessible = True, False
+        facts.smoke_ok, facts.smoke_accel = False, "tcg"
 

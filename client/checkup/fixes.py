@@ -1,17 +1,19 @@
 """One-click fixes the checkup offers.
 
-Every fix that changes the system asks Windows for admin rights (the UAC
-prompt), so the player always sees and approves it. Nothing here runs
-silently.
+Every fix that changes the system asks for admin rights first, so the
+player always sees and approves it: the UAC prompt on Windows, pkexec's
+password dialog on Linux. Nothing here runs silently.
 
 When SYSADMIN_GAME_FAKE is set, fixes only *describe* what they would do,
 so the unhappy paths can be tested without touching the real PC.
 """
 
+import getpass
+import shlex
 import subprocess
-import sys
 from dataclasses import dataclass
 
+from client import host
 from client.checkup.facts import fake_problems
 
 # Both features: QEMU's WHPX needs Windows Hypervisor Platform, and on some
@@ -31,9 +33,8 @@ def _faking() -> bool:
 
 
 def _powershell(command: str, timeout: float = 600) -> subprocess.CompletedProcess:
-    return subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", command],
-                          capture_output=True, text=True, timeout=timeout,
-                          creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+    return host.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", command],
+                    capture_output=True, text=True, timeout=timeout)
 
 
 def enable_windows_feature() -> FixResult:
@@ -62,36 +63,62 @@ def enable_windows_feature() -> FixResult:
                             "or you can play in slow mode.")
 
 
-def fix_kvm_permissions() -> FixResult:
-    """Linux: add the user to the kvm group (graphical admin prompt via pkexec)."""
-    import getpass
-    command = ["pkexec", "usermod", "-aG", "kvm", getpass.getuser()]
+def _as_admin(command: list[str], success: str, timeout: float = 900) -> FixResult:
+    """Linux: run `command` as root via pkexec, which shows a password dialog.
+
+    pkexec needs a desktop "polkit agent" to draw that dialog. Without one
+    (a bare terminal, WSL) it fails, and we tell the player the sudo command
+    to type instead.
+    """
+    by_hand = "sudo " + shlex.join(command)
     if _faking():
-        return FixResult(True, f"(Test mode: would run {' '.join(command)})", needs_restart=True)
+        return FixResult(True, f"(Test mode: would run as admin: {by_hand})", needs_restart=True)
     try:
-        result = subprocess.run(command, capture_output=True, text=True, timeout=300)
+        result = subprocess.run(["pkexec"] + command, capture_output=True, text=True, timeout=timeout)
     except (OSError, subprocess.TimeoutExpired):
-        return FixResult(False, "Couldn't ask for admin rights. Run: sudo usermod -aG kvm $USER")
+        return FixResult(False, f"Couldn't ask for admin rights. In a terminal, run: {by_hand}")
     if result.returncode == 0:
-        return FixResult(True, "Done! Log out and back in for it to take effect.", needs_restart=True)
-    return FixResult(False, "No changes made.")
+        return FixResult(True, success, needs_restart=True)
+    # pkexec's own exit codes: 126 = the player cancelled, 127 = no agent / not allowed.
+    if result.returncode == 126:
+        return FixResult(False, "No changes made (the admin prompt was cancelled).")
+    return FixResult(False, f"That didn't work. In a terminal, run: {by_hand}")
+
+
+def fix_kvm_permissions() -> FixResult:
+    """Linux: add the user to the kvm group."""
+    return _as_admin(["usermod", "-aG", "kvm", getpass.getuser()],
+                     "Done! Log out and back in for it to take effect.")
+
+
+def install_qemu() -> FixResult:
+    """Linux: install the distro's QEMU package (the game uses it to run the VM)."""
+    command = host.qemu_install_command(host.os_release())
+    if command is None:
+        return FixResult(False, "The game doesn't know how to install QEMU on this Linux "
+                                "distribution. Install qemu-system-x86_64 and qemu-img with "
+                                "your package manager, then press Check again.")
+    result = _as_admin(command, "QEMU is installed.")
+    result.needs_restart = False         # nothing to restart: press Check again
+    return result
 
 
 def restart_computer(into_firmware: bool = False) -> FixResult:
     """Restart now; with into_firmware, straight into the BIOS/UEFI setup.
 
-    `shutdown /r /fw` only works on UEFI PCs. Older BIOS machines refuse,
-    and the guide then explains the key to press during startup instead.
+    Restarting into the firmware only works on UEFI PCs. Older BIOS
+    machines refuse, and the guide then explains the key to press during
+    startup instead.
     """
-    if sys.platform != "win32":
-        return FixResult(False, "Please restart your computer yourself.")
-    command = ["shutdown", "/r", "/t", "5"] + (["/fw"] if into_firmware else [])
+    command = host.restart_command(into_firmware)
     if _faking():
         return FixResult(True, f"(Test mode: would run {' '.join(command)})")
-    result = subprocess.run(command, capture_output=True, text=True,
-                            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+    try:
+        result = host.run(command, capture_output=True, text=True, timeout=30)
+    except (OSError, subprocess.TimeoutExpired) as e:
+        return FixResult(False, f"Restart failed: {e}")
     if result.returncode == 0:
-        return FixResult(True, "Restarting in 5 seconds...")
+        return FixResult(True, "Restarting in 5 seconds..." if host.WINDOWS else "Restarting...")
     if into_firmware:
         return FixResult(False, "This PC can't restart straight into the BIOS. Restart it "
                                 "normally and press the key shown in the guide while it starts.")

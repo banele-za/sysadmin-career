@@ -8,6 +8,8 @@ import os
 import shutil
 from pathlib import Path
 
+from client import host
+
 # The repository root (the folder that contains client/, content/, images/).
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
@@ -15,19 +17,7 @@ CONTENT_DIR = REPO_ROOT / "content"
 TICKETS_DIR = CONTENT_DIR / "tickets"
 UI_DIR = REPO_ROOT / "client" / "ui"
 
-
-def _default_data_dir() -> Path:
-    """Per-user folder for the save file and the VM's working disk."""
-    override = os.environ.get("SYSADMIN_GAME_DATA")
-    if override:
-        return Path(override)
-    local = os.environ.get("LOCALAPPDATA")  # Windows
-    if local:
-        return Path(local) / "SysadminGame"
-    return Path.home() / ".local" / "share" / "sysadmin-game"
-
-
-DATA_DIR = _default_data_dir()
+DATA_DIR = host.data_dir()     # save file, VM disks, downloaded image
 
 # The base image and the game's SSH keys. Developers build them with
 # images/build_rhel.py (into images/out/); players download them on first
@@ -74,29 +64,32 @@ CLEAN_SNAPSHOT = "clean"
 def find_qemu_dir() -> Path:
     """Locate the folder holding qemu-system-x86_64 and qemu-img.
 
-    Search order: $SYSADMIN_GAME_QEMU, a bundled vendor/qemu folder (used
-    by packaged builds later), the standard Windows install path, then PATH.
+    Search order: $SYSADMIN_GAME_QEMU, a bundled vendor/qemu folder (packaged
+    Windows builds ship QEMU there), the standard Windows install path, then
+    PATH (on Linux: the distro's QEMU package, usually in /usr/bin).
     """
     candidates = []
     if os.environ.get("SYSADMIN_GAME_QEMU"):
         candidates.append(Path(os.environ["SYSADMIN_GAME_QEMU"]))
     candidates.append(REPO_ROOT / "vendor" / "qemu")
-    candidates.append(Path(r"C:\Program Files\qemu"))
+    if host.WINDOWS:
+        candidates.append(Path(r"C:\Program Files\qemu"))
     on_path = shutil.which("qemu-system-x86_64")
     if on_path:
         candidates.append(Path(on_path).parent)
 
-    exe = "qemu-system-x86_64.exe" if os.name == "nt" else "qemu-system-x86_64"
+    exe = host.exe_name("qemu-system-x86_64")
     for folder in candidates:
         if (folder / exe).exists():
             return folder
+    install = ("winget install SoftwareFreedomConservancy.QEMU" if host.WINDOWS
+               else "your distribution's qemu package")
     raise FileNotFoundError(
-        "QEMU not found. Install it (winget install SoftwareFreedomConservancy.QEMU) "
+        f"QEMU not found. Install it ({install}) "
         "or set SYSADMIN_GAME_QEMU to the folder containing qemu-system-x86_64."
     )
 
 
 def qemu_binary(name: str) -> Path:
     """Full path to a QEMU tool, e.g. qemu_binary('qemu-img')."""
-    suffix = ".exe" if os.name == "nt" else ""
-    return find_qemu_dir() / f"{name}{suffix}"
+    return find_qemu_dir() / host.exe_name(name)

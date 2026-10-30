@@ -2,17 +2,16 @@
 
 Plain text, readable by a human: the checkup results, the raw facts, and
 the tail of the logs. The user's home folder is replaced by "~" so their
-Windows username doesn't end up in a bug report.
+username doesn't end up in a bug report.
 """
 
 import os
 import platform
 import subprocess
-import sys
 import time
 from pathlib import Path
 
-from client import config
+from client import config, host
 from client.checkup.checks import Checkup
 from client.checkup.facts import Facts
 
@@ -50,21 +49,9 @@ def save_and_copy(text: str) -> str:
     config.DIAGNOSTIC_REPORT.parent.mkdir(parents=True, exist_ok=True)
     config.DIAGNOSTIC_REPORT.write_text(text, encoding="utf-8")
     where = _redact(str(config.DIAGNOSTIC_REPORT))
-    if _copy_to_clipboard(text):
+    if host.copy_to_clipboard(text):
         return f"Copied to the clipboard (also saved to {where})."
     return f"Saved to {where}."
-
-
-def _copy_to_clipboard(text: str) -> bool:
-    if sys.platform != "win32":
-        return False
-    try:
-        # clip.exe reads UTF-16 with a byte-order mark as Unicode text.
-        subprocess.run(["clip"], input=text.encode("utf-16"), check=True, timeout=10,
-                       creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
-        return True
-    except (OSError, subprocess.SubprocessError):
-        return False
 
 
 def _tail(path: Path) -> list[str]:
@@ -76,9 +63,8 @@ def _tail(path: Path) -> list[str]:
 
 def _git_version() -> str:
     try:
-        out = subprocess.run(["git", "-C", str(config.REPO_ROOT), "describe", "--always", "--dirty"],
-                             capture_output=True, text=True, timeout=5,
-                             creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        out = host.run(["git", "-C", str(config.REPO_ROOT), "describe", "--always", "--dirty"],
+                       capture_output=True, text=True, timeout=5)
         return out.stdout.strip() or "unknown"
     except (OSError, subprocess.SubprocessError):
         return "unknown"
@@ -86,9 +72,8 @@ def _git_version() -> str:
 
 def _qemu_version() -> str:
     try:
-        out = subprocess.run([str(config.qemu_binary("qemu-system-x86_64")), "--version"],
-                             capture_output=True, text=True, timeout=10,
-                             creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        out = host.run([str(config.qemu_binary("qemu-system-x86_64")), "--version"],
+                       capture_output=True, text=True, timeout=10)
         return out.stdout.splitlines()[0] if out.stdout else "unknown"
     except (OSError, subprocess.SubprocessError, FileNotFoundError):
         return "not found"

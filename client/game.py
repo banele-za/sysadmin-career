@@ -205,6 +205,12 @@ class Game:
         elif action == "kvm_fix":
             result = await asyncio.to_thread(fixes.fix_kvm_permissions)
             notice(result.message)
+        elif action == "install_qemu":
+            self.emit({"type": "checkup_notice", "text": "Installing QEMU...", "restart": False})
+            result = await asyncio.to_thread(fixes.install_qemu)
+            await self._run_checkup()          # QEMU now found: the red line turns green
+            self._show_checkup(can_close=self._checkup_done is None or self._checkup_done.is_set())
+            notice(result.message)
         elif action == "restart_now":
             notice((await asyncio.to_thread(fixes.restart_computer)).message)
         elif action == "restart_bios":
