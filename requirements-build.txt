@@ -1,0 +1,5 @@
+# Extra tools for building the Windows installer (packaging/windows/build.py).
+# Inno Setup itself comes from: winget install JRSoftware.InnoSetup
+-r requirements.txt
+pyinstaller==6.22.3
+pefile==2024.8.26

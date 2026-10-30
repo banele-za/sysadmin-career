@@ -4,6 +4,8 @@ Kept separate from the manager so you can read exactly which options we
 pass to QEMU and why, in one place.
 """
 
+import json
+import os
 import socket
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -80,6 +82,23 @@ def create_overlay(base: Path, overlay: Path) -> None:
          "-b", str(base), "-F", "qcow2", str(overlay)],
         check=True,
     )
+
+
+def backing_file(overlay: Path) -> Path | None:
+    """The base image an overlay reads from (as recorded inside the overlay)."""
+    out = host.run(
+        [str(config.qemu_binary("qemu-img")), "info", "--output=json", "-U", str(overlay)],
+        check=True, capture_output=True, text=True,
+    ).stdout
+    name = json.loads(out).get("backing-filename")
+    return Path(name) if name else None
+
+
+def same_file(a: Path | None, b: Path) -> bool:
+    """True if both paths name the same file (Windows: ignoring case and / vs \\)."""
+    if a is None:
+        return False
+    return os.path.normcase(os.path.abspath(a)) == os.path.normcase(os.path.abspath(b))
 
 
 def list_snapshots(disk: Path) -> list[str]:

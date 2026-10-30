@@ -286,16 +286,25 @@ class VMManager:
     # ---- housekeeping --------------------------------------------------------
 
     def _discard_overlay_if_stale(self) -> None:
-        """Delete the overlay if the base image was rebuilt after it was made.
+        """Delete the overlay if it wasn't made on the current base image.
 
         An overlay only stores differences from the base image it was created
-        on. On a new base those differences (and the snapshot) are garbage.
-        The overlay file is written every time the VM runs, so it's always
-        newer than its base, unless the base was replaced since.
+        on. On another base those differences (and the snapshot) are garbage.
+        Two ways that happens:
+          - the base was rebuilt or re-downloaded. The overlay file is written
+            every time the VM runs, so it's always newer than its base,
+            unless the base was replaced since;
+          - the base now lives elsewhere (a developer's images/out build vs
+            the downloaded copy the installed game uses).
         """
         overlay = self._current.disk
-        if overlay.exists() and overlay.stat().st_mtime < config.BASE_IMAGE.stat().st_mtime:
+        if not overlay.exists():
+            return
+        if overlay.stat().st_mtime < config.BASE_IMAGE.stat().st_mtime:
             self.on_status("Base image was rebuilt; starting from a fresh disk")
+            overlay.unlink()
+        elif not qemu.same_file(qemu.backing_file(overlay), config.BASE_IMAGE):
+            self.on_status("Base image moved; starting from a fresh disk")
             overlay.unlink()
 
     async def _close_root(self) -> None:

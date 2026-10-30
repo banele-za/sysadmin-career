@@ -11,7 +11,13 @@ from pathlib import Path
 from client import host
 
 # The repository root (the folder that contains client/, content/, images/).
+# In the packaged game it's the folder PyInstaller unpacks everything into,
+# laid out the same way (see packaging/windows/sysadmin-career.spec).
 REPO_ROOT = Path(__file__).resolve().parent.parent
+
+# Packaged builds carry a VERSION file written at build time; running from
+# a git checkout, `git describe` says the same thing (see report.py).
+VERSION_FILE = REPO_ROOT / "VERSION"
 
 CONTENT_DIR = REPO_ROOT / "content"
 TICKETS_DIR = CONTENT_DIR / "tickets"

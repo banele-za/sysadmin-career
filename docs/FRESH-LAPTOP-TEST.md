@@ -13,16 +13,17 @@ goes wrong, press **Copy diagnostic report** and keep the text.
 - [ ] The image release is uploaded and `IMAGE_RELEASE_URL` in `client/config.py`
       points at it (or set `SYSADMIN_GAME_IMAGE_URL`).
 
-## Install (developer setup, until there's an installer)
+## Install
 
-- [ ] `winget install Python.Python.3.12` and `winget install SoftwareFreedomConservancy.QEMU`
-- [ ] Copy or clone the repo, then `py -3.12 -m venv .venv` and
-      `.venv\Scripts\pip install -r requirements.txt`
-- [ ] Do **not** run `images\build_rhel.py`: the point is to test the download.
+- [ ] Copy `SysadminCareer-Setup-<version>.exe` to the laptop (build it with
+      `packaging\windows\build.py`) and run it. Windows SmartScreen will warn
+      about an unknown publisher (the installer isn't signed): **More info → Run anyway**.
+- [ ] No admin prompt appears; the game is in the Start menu afterwards.
+- [ ] Nothing else gets installed: no Python, no QEMU.
 
 ## First launch
 
-- [ ] `.venv\Scripts\python -m client.app`
+- [ ] Start **Sysadmin Career** from the Start menu.
 - [ ] The checkup screen appears within about 10 seconds.
 - [ ] Every line is green, yellow or red with one understandable sentence.
 - [ ] "Linux server image" offers **Download**. The progress bar moves; the
@@ -60,7 +61,14 @@ goes wrong, press **Copy diagnostic report** and keep the text.
 - [ ] With 8 GB RAM or more: after finishing a ticket (and waiting about 30
       seconds), "Next ticket" is near-instant, thanks to the warm spare.
 - [ ] Task Manager: closing the game leaves no `qemu-system-x86_64` running.
-- [ ] Ending the game's Python process in Task Manager also ends QEMU.
+- [ ] Ending `SysadminCareer.exe` in Task Manager also ends QEMU.
+- [ ] No black console windows flash up at any point.
+
+## Uninstall
+
+- [ ] Settings → Apps → Sysadmin Career → Uninstall. It asks whether to delete
+      your progress and the Linux image; answer **Yes**.
+- [ ] `%LOCALAPPDATA%\SysadminGame` and `%LOCALAPPDATA%\Programs\Sysadmin Career` are gone.
 
 ## Report back
 

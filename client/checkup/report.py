@@ -22,7 +22,7 @@ def build(facts: Facts, checkup: Checkup, extra_error: str = "") -> str:
     lines = [
         "Sysadmin Career - diagnostic report",
         f"created: {time.strftime('%Y-%m-%d %H:%M:%S')}",
-        f"game: {_git_version()}",
+        f"game: {_game_version()}",
         f"python: {platform.python_version()}  qemu: {_qemu_version()}",
         "",
         f"mode: {checkup.mode}  vm memory: {checkup.vm_memory_mb} MB  "
@@ -61,7 +61,9 @@ def _tail(path: Path) -> list[str]:
         return ["(missing)"]
 
 
-def _git_version() -> str:
+def _game_version() -> str:
+    if config.VERSION_FILE.exists():                 # packaged game: no git here
+        return config.VERSION_FILE.read_text(encoding="utf-8").strip()
     try:
         out = host.run(["git", "-C", str(config.REPO_ROOT), "describe", "--always", "--dirty"],
                        capture_output=True, text=True, timeout=5)

@@ -19,6 +19,7 @@ import asyncio
 import json
 import logging
 import queue
+import sys
 import threading
 
 import webview
@@ -121,9 +122,11 @@ def main() -> None:
 def _setup_logging() -> None:
     """Log to the console and to game.log (the diagnostic report includes its tail)."""
     config.GAME_LOG.parent.mkdir(parents=True, exist_ok=True)
-    file_handler = logging.FileHandler(config.GAME_LOG, mode="w", encoding="utf-8")
+    handlers: list[logging.Handler] = [logging.FileHandler(config.GAME_LOG, mode="w", encoding="utf-8")]
+    if sys.stderr:      # the packaged game has no console, and then sys.stderr is None
+        handlers.append(logging.StreamHandler())
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s",
-                        handlers=[file_handler, logging.StreamHandler()])
+                        handlers=handlers)
     logging.getLogger("asyncssh").setLevel(logging.WARNING)    # very chatty at INFO
 
 

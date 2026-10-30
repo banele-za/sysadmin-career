@@ -12,3 +12,8 @@ images/release/
 # Local runtime data when SYSADMIN_GAME_DATA points inside the repo
 data/
 images/build.log
+
+# Packaging: the trimmed QEMU copy, PyInstaller's work folders, finished installers
+vendor/
+build/
+dist/

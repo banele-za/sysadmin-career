@@ -4,7 +4,8 @@ A desktop game that teaches Linux administration (RHCSA / SUSE SCA style
 objectives) by having you fix real problems on a hidden Linux VM.
 Design: [docs/DESIGN.md](docs/DESIGN.md). Done so far: Milestone 1 (vertical
 slice: Red Hat track, Windows, a five-ticket ladder) and Milestone 2 (first-run
-checkup, one-click fixes, BIOS guides, slow mode, image download).
+checkup, one-click fixes, BIOS guides, slow mode, image download). Milestone 3
+(Windows installer, Linux support) is in progress.
 
 ## Setup (Windows, development)
 
@@ -49,6 +50,21 @@ Your save, the VM's working disks and `game.log` live in
 on Linux (override with `SYSADMIN_GAME_DATA`). Delete `vm` there for a
 factory-fresh VM. Everything that differs between Windows and Linux is in
 `client/host.py`.
+
+## Building the Windows installer
+
+```powershell
+winget install JRSoftware.InnoSetup
+.venv\Scripts\pip install -r requirements-build.txt
+.venv\Scripts\python packaging\windows\build.py
+```
+
+makes `dist\SysadminCareer-Setup-<version>.exe` (about 70 MB). It installs
+for the current user without an admin prompt, adds a Start-menu entry, and
+contains its own trimmed copy of QEMU (`vendor\qemu`, 124 MB instead of the
+full 1.2 GB install; `packaging\windows\vendor_qemu.py` explains what's kept).
+Players still download the Linux image on first launch. Uninstalling asks
+whether to delete the save and the image too.
 
 ## Publishing the image
 
