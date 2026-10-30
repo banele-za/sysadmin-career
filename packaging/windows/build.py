@@ -26,7 +26,9 @@ import vendor_qemu      # noqa: E402  (needs the path above)
 
 
 def git_version() -> str:
-    out = subprocess.run(["git", "-C", str(REPO), "describe", "--tags", "--always", "--dirty"],
+    # Only game version tags (v0.3.0) count, not the image releases (image-v1).
+    out = subprocess.run(["git", "-C", str(REPO), "describe", "--tags", "--match", "v*",
+                          "--always", "--dirty"],
                          capture_output=True, text=True, check=True)
     return out.stdout.strip()
 

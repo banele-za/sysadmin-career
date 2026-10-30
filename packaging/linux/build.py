@@ -37,7 +37,9 @@ APPIMAGETOOL_URL = ("https://github.com/AppImage/appimagetool/releases/download/
 
 
 def git_version() -> str:
-    out = subprocess.run(["git", "-C", str(REPO), "describe", "--tags", "--always", "--dirty"],
+    # Only game version tags (v0.3.0) count, not the image releases (image-v1).
+    out = subprocess.run(["git", "-C", str(REPO), "describe", "--tags", "--match", "v*",
+                          "--always", "--dirty"],
                          capture_output=True, text=True, check=True)
     return out.stdout.strip()
 
