@@ -1,0 +1,103 @@
+# GitHub Actions: GitHub's own machines run this on every push.
+#
+#   tests          the fast test suite, on Windows and on Linux
+#   windows        builds SysadminCareer-Setup-<version>.exe
+#   linux          builds SysadminCareer-<version>-x86_64.AppImage
+#   release        only for version tags (git tag v0.3.0 && git push origin v0.3.0):
+#                  publishes both files as a GitHub Release
+#
+# Every run's files can be downloaded from the run's page under "Artifacts".
+# (The VM tests need the Linux image and minutes of booting, so they stay local.)
+
+name: build
+
+on:
+  push:
+    branches: [master]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:          # a "Run workflow" button on the Actions page
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-22.04]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - run: python -m pytest tests --ignore=tests/test_vm.py --ignore=tests/test_game.py -q
+
+  windows:
+    needs: tests
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0              # all history and tags, for `git describe`
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements-build.txt
+      # QEMU's Windows build (to trim into vendor/qemu) and Inno Setup.
+      - run: choco install qemu innosetup --no-progress -y
+      - run: python packaging/windows/build.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: dist/SysadminCareer-Setup-*.exe
+          if-no-files-found: error
+
+  linux:
+    needs: tests
+    # The oldest supported Ubuntu: the AppImage then also runs on every
+    # distribution with the same or a newer C library.
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      # Libraries Qt's window code links to. PyInstaller copies the ones it
+      # finds into the AppImage, so players don't need them installed.
+      - run: >
+          sudo apt-get update -qq && sudo apt-get install -y -qq
+          libxcb-cursor0 libxkbcommon-x11-0 libnss3 libxcomposite1 libxdamage1
+          libxrandr2 libxtst6 libegl1 libgl1 libxkbfile1 libxcb-icccm4
+          libxcb-keysyms1 libxcb-image0 libxcb-render-util0 libxcb-shape0 libxcb-xinerama0
+      - run: pip install -r requirements-build.txt
+      - run: python packaging/linux/build.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-appimage
+          path: dist/SysadminCareer-*.AppImage
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [windows, linux]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write             # allowed to create the release
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: files
+          merge-multiple: true
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: >
+          gh release create "${{ github.ref_name }}" files/*
+          --repo "${{ github.repository }}" --title "Sysadmin Career ${{ github.ref_name }}"
+          --notes "Windows: run the Setup .exe. Linux: make the .AppImage executable and run it;
+          the game offers to install QEMU on first launch."

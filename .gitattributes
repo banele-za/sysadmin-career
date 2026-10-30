@@ -2,3 +2,6 @@
 *.sh        text eol=lf
 *.yaml      text eol=lf
 images/cloud-init/*  text eol=lf
+# The same for the Linux AppImage's files (a carriage return breaks "#!/bin/sh").
+packaging/linux/AppRun    text eol=lf
+*.desktop                 text eol=lf
