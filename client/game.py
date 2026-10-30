@@ -5,7 +5,7 @@ through `emit(event_dict)`, so it doesn't know or care that the UI is a web page
 
 Events sent to the UI (the "type" field):
   status    {text}                   progress messages while the VM starts or resets
-  stats     {xp, rep, mode}          counters in the top bar
+  stats     {xp, rep, mode, tier...} counters and career progress in the top bar
   ticket    {...}                    a new ticket to show
   term      {data}                   terminal output (base64)
   term_reset {}                      clear the terminal for a new ticket
@@ -22,7 +22,7 @@ from typing import Callable
 import yaml
 
 from client import config
-from client.engine import economy, grader, tickets
+from client.engine import economy, grader, progression, tickets
 from client.save.db import SaveFile
 from client.ssh.bridge import TerminalBridge
 from client.vm.manager import VMManager
@@ -101,16 +101,9 @@ class Game:
     # ---- ticket flow -------------------------------------------------------
 
     def _pick_ticket(self) -> tickets.Ticket:
-        """First unsolved ticket in order; once all are solved, the oldest repeat."""
-        solved = self.save.solved_ticket_ids()
-        for t in self.tickets:
-            if t.id not in solved:
-                return t
-        # Everything solved: rotate so the same ticket doesn't come up twice in a row.
-        if self.current:
-            ids = [t.id for t in self.tickets]
-            return self.tickets[(ids.index(self.current.ticket.id) + 1) % len(self.tickets)]
-        return self.tickets[0]
+        """Next ticket on the career ladder (see engine/progression.py)."""
+        current_id = self.current.ticket.id if self.current else None
+        return progression.pick_next(self.tickets, self.save.solved_ticket_ids(), current_id)
 
     async def _begin(self, ticket: tickets.Ticket) -> None:
         self._stop_mentor()
@@ -144,6 +137,10 @@ class Game:
 
         if ticket.guided:
             self._mentor_task = asyncio.create_task(self._run_mentor(instance))
+        elif ticket.mentor_intro:
+            # Unguided, but the mentor introduces the idea first (no commands).
+            self.emit({"type": "mentor", "text": instance.text(ticket.mentor_intro).strip(),
+                       "needs_ack": False})
 
     async def _grade(self) -> None:
         self.emit({"type": "status", "text": "Checking your work..."})
@@ -214,7 +211,9 @@ class Game:
         mode = None
         if self.vm.accel:
             mode = "fast" if self.vm.accel.hardware else "slow"
-        self.emit({"type": "stats", "xp": p.xp, "rep": p.rep, "mode": mode})
+        prog = progression.progress(self.tickets, self.save.solved_ticket_ids())
+        self.emit({"type": "stats", "xp": p.xp, "rep": p.rep, "mode": mode,
+                   "tier": prog.tier_name, "tier_solved": prog.solved, "tier_total": prog.total})
 
     def _report(self, e: Exception) -> None:
         traceback.print_exc()

@@ -1,0 +1,32 @@
+id: perm-01-chmod
+title: "Gary's report is open to the whole company"
+tier: 1
+skill: permissions
+level: 1
+objectives: [perm.ugo]
+character: gary
+tracks: [rhel, suse]
+params:
+  dir: /srv/accounting
+  report: { pick: [q3-report.txt, budget.txt, expenses.txt] }
+  script: { pick: [totals.sh, sum.sh, monthly.sh] }
+  colleague: { pick: [alice, bob, carol] }
+narrative: |
+  Gary writes: "Two problems in {dir}, please help!
+
+  1. IT says {report} is readable by literally everyone. It should be:
+     me read and write, the accounting team read only, everyone else
+     nothing at all.
+
+  2. My script {script} says 'Permission denied' when I run it. I need
+     to be able to run it. Nobody but me should be able to change it."
+
+  Gary owns both files and {colleague} is in the accounting team.
+  You'll need sudo, since the files aren't yours.
+hints:
+  - "Start with `ls -l {dir}`. Which of the three rwx groups is wrong on each file?"
+  - "`chmod` sets permissions, either with letters (u/g/o, +/-) or numbers (r=4, w=2, x=1)."
+  - "sudo chmod 640 {dir}/{report}; sudo chmod 744 {dir}/{script}  (or: sudo chmod u+x,go-w ...)"
+requires_reboot: false
+time_limit: null
+rewards: { xp: 25, rep: 8 }

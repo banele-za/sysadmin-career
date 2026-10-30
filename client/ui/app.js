@@ -63,7 +63,9 @@ function formatMessage(text) {
     if (lines.every((l) => l.startsWith("    "))) {
       return `<pre>${escapeHtml(lines.map((l) => l.slice(4)).join("\n"))}</pre>`;
     }
-    const html = escapeHtml(lines.join(" ")).replace(/`([^`]+)`/g, "<code>$1</code>");
+    const html = escapeHtml(lines.join(" "))
+      .replace(/`([^`]+)`/g, "<code>$1</code>")          // `code`
+      .replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>");          // **bold**
     return `<p>${html}</p>`;
   }).join("");
 }
@@ -95,6 +97,8 @@ const handlers = {
   stats(e) {
     bump("xp", e.xp);
     bump("rep", e.rep);
+    $("tier-name").textContent = e.tier;
+    $("tier-progress").textContent = `${e.tier_solved} / ${e.tier_total}`;
     const badge = $("mode-badge");
     badge.hidden = !e.mode;
     badge.textContent = e.mode === "slow" ? "Slow mode" : "Fast mode";

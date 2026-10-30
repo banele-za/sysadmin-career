@@ -39,6 +39,7 @@ packages:
   - vim-enhanced
   - bash-completion
   - tree
+  - acl          # getfacl/setfacl: ACLs are RHCSA material
 
 runcmd:
   # Files written by cloud-init need the right SELinux label or sshd ignores them.

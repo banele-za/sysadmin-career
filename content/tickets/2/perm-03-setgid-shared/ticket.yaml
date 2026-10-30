@@ -19,6 +19,20 @@ narrative: |
   created from now on and the reports already in there. People outside
   {group}, Gary included, shouldn't be able to get in at all.
 mentor_steps: []              # unguided ticket
+# Two new ideas at once, so the mentor explains them (without commands).
+mentor_intro: |
+  Welcome to Tier 2! Two new ideas for this one:
+
+  **setgid on a folder.** Normally a new file gets the group of whoever
+  created it. If a folder has the setgid bit (an `s` where the group's
+  `x` would be in `ls -l`), new files get the folder's group instead.
+  That's how team folders stay shared. `man chmod` covers it, look for
+  "setgid" or the number 2000.
+
+  **umask.** It decides which permissions new files start without. Here
+  it's 022: new files get no group write. Type `umask` to see yours.
+
+  Fixing the folder doesn't fix files already in there, so check those too.
 # On RHEL 10 users get umask 022, so a setgid folder alone isn't enough:
 # new files arrive without group write. That's the "+ umask" part of level 3.
 # A default ACL (setfacl -d) also works and passes; that's level 4 material.

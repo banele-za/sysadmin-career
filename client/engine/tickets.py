@@ -48,6 +48,7 @@ class Ticket:
     params: dict
     narrative: str
     mentor_steps: list[MentorStep]
+    mentor_intro: str | None        # one mentor message for an unguided ticket
     hints: list[str]
     requires_reboot: bool
     time_limit: int | None
@@ -112,6 +113,7 @@ def load_ticket(yaml_path: Path) -> Ticket:
         params=data.get("params") or {},
         narrative=data["narrative"],
         mentor_steps=steps,
+        mentor_intro=data.get("mentor_intro"),
         hints=list(data.get("hints") or []),
         requires_reboot=bool(data.get("requires_reboot", False)),
         time_limit=data.get("time_limit"),
@@ -120,8 +122,14 @@ def load_ticket(yaml_path: Path) -> Ticket:
     )
 
 
+def ladder_key(t: Ticket) -> tuple:
+    """The order the player meets tickets in: tier, then level, guided
+    tutorial before unguided practice, then id. See engine/progression.py."""
+    return (t.tier, t.level, not t.guided, t.id)
+
+
 def load_all(root: Path, track: str | None = None) -> list[Ticket]:
-    """Every ticket under `root`, sorted by tier then id, optionally for one track."""
+    """Every ticket under `root` in ladder order, optionally for one track."""
     tickets = [load_ticket(p) for p in root.rglob("ticket.yaml")]
     ids = [t.id for t in tickets]
     duplicates = {i for i in ids if ids.count(i) > 1}
@@ -129,7 +137,7 @@ def load_all(root: Path, track: str | None = None) -> list[Ticket]:
         raise TicketError(f"duplicate ticket ids: {sorted(duplicates)}")
     if track:
         tickets = [t for t in tickets if track in t.tracks]
-    return sorted(tickets, key=lambda t: (t.tier, t.id))
+    return sorted(tickets, key=ladder_key)
 
 
 def instantiate(ticket: Ticket, seed: int | None = None) -> TicketInstance:

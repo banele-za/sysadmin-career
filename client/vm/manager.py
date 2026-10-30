@@ -53,6 +53,7 @@ class VMManager:
         self.accel = accel.detect(self.force_software)
         self.on_status(f"Starting VM ({'fast' if self.accel.hardware else 'slow'} mode, {self.accel.name})")
 
+        self._discard_overlay_if_stale()
         have_snapshot = (config.OVERLAY_DISK.exists() and
                          config.CLEAN_SNAPSHOT in qemu.list_snapshots(config.OVERLAY_DISK))
         if have_snapshot:
@@ -187,6 +188,19 @@ class VMManager:
         conn = await session.wait_until_up(self.ssh_port, "root", config.ROOT_KEY, 60)
         await conn.run(f"date -s @{time.time():.3f} >/dev/null")
         self._root = conn
+
+    def _discard_overlay_if_stale(self) -> None:
+        """Delete the overlay if the base image was rebuilt after it was made.
+
+        An overlay only stores differences from the base image it was created
+        on. On a new base those differences (and the snapshot) are garbage.
+        The overlay file is written every time the VM runs, so it's always
+        newer than its base, unless the base was replaced since.
+        """
+        overlay = config.OVERLAY_DISK
+        if overlay.exists() and overlay.stat().st_mtime < config.BASE_IMAGE.stat().st_mtime:
+            self.on_status("Base image was rebuilt; starting from a fresh disk")
+            overlay.unlink()
 
     async def _recreate_overlay_and_boot(self) -> None:
         """Slow reset path: discard every change and cold-boot the base image."""

@@ -3,7 +3,7 @@
 A desktop game that teaches Linux administration (RHCSA / SUSE SCA style
 objectives) by having you fix real problems on a hidden Linux VM.
 Design: [docs/DESIGN.md](docs/DESIGN.md). This is Milestone 1, the vertical
-slice: Red Hat track, Windows, two tickets.
+slice: Red Hat track, Windows, a five-ticket ladder (files, then permissions).
 
 ## Setup (Windows, development)
 
@@ -29,7 +29,7 @@ factory-fresh VM.
 ## Tests
 
 ```powershell
-.venv\Scripts\python -m pytest tests\test_engine.py tests\test_save.py   # fast, no VM
+.venv\Scripts\python -m pytest tests\test_engine.py tests\test_save.py tests\test_progression.py   # fast, no VM
 .venv\Scripts\python -m pytest tests\test_vm.py -s                     # boots the real VM
 ```
 
@@ -45,7 +45,7 @@ client/
   config.py       every path and setting
   vm/             accel detection, QEMU command line, QMP client, VM manager
   ssh/            asyncssh helpers and the terminal bridge
-  engine/         ticket loader, params, grader, economy
+  engine/         ticket loader, params, grader, economy, progression (the ladder)
   save/           SQLite save file
   ui/             HTML/CSS/JS, vendored xterm.js
 content/
@@ -62,6 +62,14 @@ tests/
 Copy a folder under `content/tickets/`, rename it to the new id, and edit it.
 No Python changes needed. The ticket.yaml format is in docs/DESIGN.md, plus:
 
+- **The ladder.** Players meet tickets in order of tier, then `level`, with
+  guided tickets before unguided ones (`engine/progression.py`). A ticket
+  unlocks once every lower tier is done and every lower-level ticket of the
+  same `skill`. Each skill must start with a guided level-1 ticket and climb
+  one level at a time; `test_progression.py` enforces this, so a new ticket
+  can't throw beginners into the deep end. Teach a new command family with a
+  guided ticket first, then practise it unguided.
+
 - **Params** become upper-case environment variables (`group` -> `$GROUP`).
   Lists are space-separated (`for u in $USERS`). Names like `home` or `path`
   are rejected because they'd overwrite `$HOME` / `$PATH`.
@@ -71,6 +79,8 @@ No Python changes needed. The ticket.yaml format is in docs/DESIGN.md, plus:
   A check must **stay true after later steps** (e.g. accept the renamed file
   too), otherwise a player who does two steps between polls gets stuck.
   `test_vm.py` enforces this.
+- **`mentor_intro`** (unguided tickets, optional): one mentor message shown
+  at the start. Use it to explain a new *idea* without giving the commands.
 - **`grade.sh`** uses `check NAME MESSAGE COMMAND...` and ends with `finish`.
   Prefer testing behaviour (`as_user alice "..."`) over exact modes, so
   every valid solution passes.

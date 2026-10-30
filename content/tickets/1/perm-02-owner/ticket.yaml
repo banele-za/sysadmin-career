@@ -1,0 +1,32 @@
+id: perm-02-owner
+title: "{leaver} left; the {project} project needs a new owner"
+tier: 1
+skill: permissions
+level: 2
+objectives: [perm.ugo]
+character: gary
+tracks: [rhel, suse]
+params:
+  leaver: { pick: [alice, carol, erin] }
+  newowner: { pick: [bob, dan] }
+  teammate: { pick: [frank, grace] }
+  team: { pick: [sales, marketing, legal] }
+  project: { pick: [rebrand, website, tender] }
+  dir: "/srv/projects/{project}"
+narrative: |
+  Gary writes: "{leaver} has left the company and {newowner} is taking
+  over the {project} project in {dir}. Everything in there still belongs
+  to {leaver}, so {newowner} can't edit anything. I tried copying the
+  files, but then the copies were a mess.
+
+  Can you make {newowner} the owner of the folder and every file in it
+  (subfolders too), with the {team} group, so the {team} team
+  ({teammate}, for example) can read it all? Leave the permissions as
+  they are, they're fine."
+hints:
+  - "`ls -l {dir}` shows the owner and group of each file. Don't forget the subfolder."
+  - "`chown` changes the owner, and can set the group at the same time with USER:GROUP. Look for its recursive option in `man chown`."
+  - "sudo chown -R {newowner}:{team} {dir}"
+requires_reboot: false
+time_limit: null
+rewards: { xp: 30, rep: 10 }

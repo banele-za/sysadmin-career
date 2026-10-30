@@ -1,0 +1,99 @@
+id: tut-02-perms
+title: "Who can do what? Permissions 101"
+tier: 1
+skill: permissions
+level: 1
+objectives: [perm.ugo]
+character: mentor
+tracks: [rhel, suse]
+params:
+  script: { pick: [hello.sh, greet.sh, welcome.sh] }
+  secret: { pick: [diary.txt, salary.txt, private-notes.txt] }
+  group: { pick: [helpdesk, support, itops] }
+  lesson: /home/admin/lesson
+  handover: /srv/handover
+narrative: |
+  Every file on Linux has an owner, a group, and a set of permissions
+  that say who may read, change or run it. Half the tickets you'll ever
+  get are about these, so let's learn to read and change them.
+
+  Your practice files are in {lesson}.
+
+# Guided ticket. Each check must stay true after the later steps.
+mentor_steps:
+  - say: |
+      Go to your practice folder and list it in long format:
+
+          cd lesson
+          ls -l
+
+      Each line starts with something like `-rw-r--r--`. Read it in
+      three groups of three after the first character:
+
+          -  rw-  r--  r--
+             |    |    └── others (everyone else)
+             |    └─────── the file's group
+             └──────────── the file's owner (user)
+
+      `r` = read, `w` = write (change), `x` = execute (run), `-` = no.
+      The next two names on the line are the owner and the group.
+      Click "Got it" when you've found them.
+  - say: |
+      Try running the script:
+
+          ./{script}
+
+      "Permission denied": it has no `x` for anyone. `chmod` changes
+      permissions. Give the owner (you, `u`) execute permission, then
+      run it again:
+
+          chmod u+x {script}
+          ./{script}
+
+      In `u+x`, the letters mean u = user/owner, g = group, o = others,
+      a = all, and `+` adds a permission while `-` removes one.
+    check: test "$(stat -c %A "$LESSON/$SCRIPT" | cut -c4)" = x
+  - say: |
+      Now {secret}: look at `ls -l` again. Everyone can read it (`r` in
+      the others column). That's not great for a private file.
+
+      chmod also takes numbers. Each group of three is added up from
+      r = 4, w = 2, x = 1. So rw- is 6, r-- is 4, --- is 0, and
+      "owner can read and write, nobody else anything" is 600:
+
+          chmod 600 {secret}
+          ls -l {secret}
+
+      You should see `-rw-------`.
+    check: test "$(stat -c %a "$LESSON/$SECRET")" = 600
+  - say: |
+      Ownership next. Look at {handover}:
+
+          ls -l {handover}
+
+      report.txt belongs to root, so you can read it but can't change it.
+      Only root may give a file to someone else. `sudo` runs one
+      command as root (here it won't ask for a password):
+
+          sudo chown admin {handover}/report.txt
+
+      `chown` = change owner. Check with `ls -l {handover}`.
+    check: test "$(stat -c %U "$HANDOVER/report.txt")" = admin
+  - say: |
+      The group is still wrong: this report belongs to the {group} team.
+      `chgrp` changes the group:
+
+          sudo chgrp {group} {handover}/report.txt
+
+      Handy shortcut for next time: `chown admin:{group} FILE` sets both
+      in one go. And `man chmod` has all the details. When `ls -l`
+      shows admin and {group}, press Submit.
+    check: test "$(stat -c %G "$HANDOVER/report.txt")" = "$GROUP"
+
+hints:
+  - "Each mentor message tells you the exact command. Re-read the latest one."
+  - "Use `ls -l` after each step to see what changed."
+  - "chmod u+x {lesson}/{script}; chmod 600 {lesson}/{secret}; sudo chown admin:{group} {handover}/report.txt"
+requires_reboot: false
+time_limit: null
+rewards: { xp: 20, rep: 5 }
