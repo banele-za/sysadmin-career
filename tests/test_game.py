@@ -67,7 +67,12 @@ async def _play():
     ui = Recorder()
     game = Game(ui)
     try:
-        await game.start()
+        # A brand-new save shows the first-run checkup; press "Start playing".
+        starting = asyncio.create_task(game.start())
+        await ui.wait_for(lambda: ui.of_type("checkup"), 60, "checkup screen")
+        assert ui.of_type("checkup")[0]["first_run"]
+        await game.checkup_action("continue")
+        await starting
         await _tutorial_files(game, ui)
         await _next(game, ui, "tut-02-perms", guided=True)
         await _tutorial_perms(game, ui)

@@ -3,6 +3,7 @@
 Tables:
   player   - one row: track, XP, reputation
   attempts - every ticket attempt: which ticket, its seed and params, outcome
+  settings - small key/value choices, e.g. "the player chose slow mode"
 
 Storing the seed means any attempt can be replayed with the same params.
 `user_version` tracks the schema so later milestones can migrate old saves.
@@ -14,7 +15,7 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS player (
@@ -37,6 +38,17 @@ CREATE TABLE IF NOT EXISTS attempts (
 );
 """
 
+# Each entry upgrades a save from version N-1 to N. Old saves run every
+# step they're missing, in order, so nobody loses progress.
+MIGRATIONS = {
+    2: """
+CREATE TABLE IF NOT EXISTS settings (
+    key   TEXT PRIMARY KEY,
+    value TEXT NOT NULL                    -- JSON
+);
+""",
+}
+
 
 @dataclass
 class Player:
@@ -55,7 +67,10 @@ class SaveFile:
         version = self.db.execute("PRAGMA user_version").fetchone()[0]
         if version == 0:
             self.db.executescript(SCHEMA)
-            self.db.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
+            version = 1
+        for target in range(version + 1, SCHEMA_VERSION + 1):
+            self.db.executescript(MIGRATIONS[target])
+            self.db.execute(f"PRAGMA user_version = {target}")
         self.db.execute("INSERT OR IGNORE INTO player (id, track, created_at) VALUES (1, ?, ?)",
                         (track, time.time()))
         self.db.commit()
@@ -87,6 +102,15 @@ class SaveFile:
     def solved_ticket_ids(self) -> set[str]:
         rows = self.db.execute("SELECT DISTINCT ticket_id FROM attempts WHERE solved_at IS NOT NULL")
         return {r["ticket_id"] for r in rows}
+
+    def get_setting(self, key: str, default=None):
+        row = self.db.execute("SELECT value FROM settings WHERE key = ?", (key,)).fetchone()
+        return json.loads(row["value"]) if row else default
+
+    def set_setting(self, key: str, value) -> None:
+        self.db.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
+                        (key, json.dumps(value)))
+        self.db.commit()
 
     def close(self) -> None:
         self.db.close()

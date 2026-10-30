@@ -16,7 +16,9 @@ the emit thread pushes into the page with evaluate_js.
 import argparse
 import asyncio
 import json
+import logging
 import queue
+import sys
 import threading
 
 import webview
@@ -48,6 +50,12 @@ class Api:
     def next_ticket(self):
         self._spawn(self._game.next_ticket())
 
+    def open_checkup(self):
+        self._spawn(self._game.open_checkup())
+
+    def checkup_action(self, action):
+        self._spawn(self._game.checkup_action(str(action)))
+
     def mentor_ack(self):
         self._call(self._game.mentor_ack)
 
@@ -77,7 +85,7 @@ class Emitter:
             try:
                 self.window.evaluate_js(f"window.game.onEvent({json.dumps(event)})")
             except Exception as e:      # window closing, page not loaded yet, ...
-                print(f"emit failed: {e}")
+                logging.getLogger(__name__).warning("emit failed: %s", e)
 
 
 def main() -> None:
@@ -85,6 +93,7 @@ def main() -> None:
     parser.add_argument("--software", action="store_true", help="force slow (software) mode")
     parser.add_argument("--debug", action="store_true", help="enable the web inspector")
     args = parser.parse_args()
+    _setup_logging()
 
     loop = asyncio.new_event_loop()
     game_thread = threading.Thread(target=loop.run_forever, daemon=True, name="game")
@@ -94,28 +103,55 @@ def main() -> None:
     # Game() must be created on the game thread: it makes asyncio objects.
     game = asyncio.run_coroutine_threadsafe(_make_game(emitter, args.software), loop).result()
 
-    width, height = _window_size()
+    width, height, x, y = _window_geometry()
     window = webview.create_window(
         "Sysadmin Career", url=str(config.UI_DIR / "index.html"),
-        js_api=Api(loop, game), width=width, height=height, min_size=(960, 600),
+        js_api=Api(loop, game), width=width, height=height, x=x, y=y, min_size=(960, 600),
         background_color="#14161a",
     )
     emitter.window = window
     webview.start(debug=args.debug)
 
     # The window was closed: shut the VM down cleanly before exiting.
-    print("Shutting down VM...")
+    logging.getLogger(__name__).info("window closed, shutting down VM")
     asyncio.run_coroutine_threadsafe(game.shutdown(), loop).result(timeout=30)
     loop.call_soon_threadsafe(loop.stop)
 
 
-def _window_size() -> tuple[int, int]:
-    """1400x860, shrunk to 90% of the screen on smaller displays."""
+def _setup_logging() -> None:
+    """Log to the console and to game.log (the diagnostic report includes its tail)."""
+    config.GAME_LOG.parent.mkdir(parents=True, exist_ok=True)
+    file_handler = logging.FileHandler(config.GAME_LOG, mode="w", encoding="utf-8")
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+                        handlers=[file_handler, logging.StreamHandler()])
+    logging.getLogger("asyncssh").setLevel(logging.WARNING)    # very chatty at INFO
+
+
+def _window_geometry() -> tuple[int, int, int, int]:
+    """(width, height, x, y): up to 1400x860, centered in the usable screen area.
+
+    "Usable" means without the taskbar: pywebview's default spot can leave
+    the bottom of a large window hidden behind it.
+    """
+    left, top, width, height = _work_area()
+    w, h = min(1400, int(width * 0.92)), min(860, int(height * 0.92))
+    return w, h, left + (width - w) // 2, top + (height - h) // 2
+
+
+def _work_area() -> tuple[int, int, int, int]:
+    """(left, top, width, height) of the primary screen minus the taskbar."""
+    if sys.platform == "win32":
+        import ctypes
+        from ctypes import wintypes
+        rect = wintypes.RECT()
+        SPI_GETWORKAREA = 0x0030
+        if ctypes.windll.user32.SystemParametersInfoW(SPI_GETWORKAREA, 0, ctypes.byref(rect), 0):
+            return rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top
     try:
         screen = webview.screens[0]
-        return min(1400, int(screen.width * 0.9)), min(860, int(screen.height * 0.9))
+        return 0, 0, screen.width, screen.height
     except (IndexError, AttributeError):
-        return 1280, 760
+        return 0, 0, 1366, 768
 
 
 async def _make_game(emit, force_software: bool) -> Game:

@@ -10,10 +10,11 @@
   <header class="topbar">
     <div class="brand">srv01 <span class="dim">· <span id="tier-name">Help Desk</span></span></div>
     <div class="stats">
-      <span id="mode-badge" class="badge" hidden></span>
+      <button id="mode-badge" class="badge" hidden title="Run the checkup"></button>
       <span class="stat" title="Tickets solved in this tier">Tickets <b id="tier-progress">0 / 0</b></span>
       <span class="stat">XP <b id="xp">0</b></span>
       <span class="stat">Rep <b id="rep">0</b></span>
+      <button id="checkup-btn" class="icon-btn" title="Computer checkup">Checkup</button>
     </div>
   </header>
 
@@ -51,6 +52,53 @@
       </section>
     </aside>
   </main>
+
+  <!-- First-run checkup. Python fills it in (events: checkup, guide, ...). -->
+  <div id="checkup" class="modal" hidden>
+    <div class="modal-box">
+      <section id="checkup-main">
+        <h1>Computer checkup</h1>
+        <p id="checkup-intro" class="dim"></p>
+        <div id="checkup-fake" class="fake" hidden></div>
+        <div id="checkup-error" class="error-box" hidden></div>
+        <ul id="checkup-list" class="checkup-list"></ul>
+        <div id="download" hidden>
+          <div class="progress"><div id="download-bar"></div></div>
+          <div id="download-text" class="dim"></div>
+        </div>
+        <div id="checkup-notice" class="notice" hidden>
+          <span id="checkup-notice-text"></span>
+          <span id="checkup-restart" hidden>
+            <button data-action="restart_now">Restart now</button>
+            <button data-dismiss>Later</button>
+          </span>
+        </div>
+        <div class="modal-actions">
+          <button data-action="report" class="link">Copy diagnostic report</button>
+          <span class="spacer"></span>
+          <button data-action="retry">Check again</button>
+          <button id="checkup-slow" data-action="slow_mode">Play in slow mode</button>
+          <button id="checkup-continue" data-action="continue" class="primary">Start playing</button>
+          <button id="checkup-close" data-action="close">Close</button>
+        </div>
+      </section>
+
+      <section id="guide" hidden>
+        <h1 id="guide-title"></h1>
+        <p class="dim">The setting is called <b id="guide-setting"></b>.</p>
+        <ol id="guide-steps" class="guide-steps"></ol>
+        <ul id="guide-notes" class="dim"></ul>
+        <p id="guide-placeholder" class="fake" hidden>Placeholder guide: pictures and menu
+          names are approximate until they've been checked on real PCs.</p>
+        <div class="modal-actions">
+          <button id="guide-back">Back</button>
+          <span class="spacer"></span>
+          <button data-action="slow_mode">Skip, play in slow mode</button>
+          <button data-action="restart_bios" class="primary">Restart into BIOS</button>
+        </div>
+      </section>
+    </div>
+  </div>
 
   <script src="vendor/xterm/xterm.js"></script>
   <script src="vendor/xterm/addon-fit.js"></script>

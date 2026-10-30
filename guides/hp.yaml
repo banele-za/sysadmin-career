@@ -1,0 +1,9 @@
+# PLACEHOLDER: verify menu paths on real machines before release.
+brand: HP
+match: [hp, hewlett]
+keys: [Esc, F10]
+menus:
+  intel: "Configuration  (or Advanced > System Options)  >  Virtualization Technology (VTx)"
+  amd: "Configuration  (or Advanced > System Options)  >  Virtualization Technology"
+notes:
+  - "Press Esc repeatedly as the PC starts to get the Startup Menu, then F10 for BIOS Setup."

@@ -1,0 +1,9 @@
+# PLACEHOLDER: verify menu paths on real machines before release.
+brand: Gigabyte
+match: [gigabyte]
+keys: [Delete, F2]
+menus:
+  intel: "Tweaker  (or Advanced)  >  Advanced CPU Settings  >  Intel Virtualization Technology"
+  amd: "Tweaker  >  Advanced CPU Settings  >  SVM Mode"
+notes:
+  - "Press F2 if you start in the simple \"Easy Mode\" screen."

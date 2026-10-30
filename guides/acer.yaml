@@ -1,0 +1,9 @@
+# PLACEHOLDER: verify menu paths on real machines before release.
+brand: Acer
+match: [acer]
+keys: [F2]
+menus:
+  intel: "Advanced  >  Intel Virtualization Technology"
+  amd: "Advanced  >  AMD-V  (or SVM Mode)"
+notes:
+  - "On some Acer laptops the Advanced tab only appears after you set a supervisor password on the Security tab. You can remove the password again afterwards."

@@ -3,6 +3,7 @@
     .venv\\Scripts\\python -m pytest tests\\test_vm.py -s
 
 Set TEST_SOFTWARE=1 to test slow mode (software emulation) instead.
+In fast mode the warm spare is on, as it would be on a PC with 8 GB+ RAM.
 
 Uses its own disk under data/ so it never touches your save game.
 The first run boots Linux and saves the snapshot; later runs reuse it.
@@ -39,17 +40,23 @@ def test_reset_and_every_ticket(test_disk):
 
 
 async def _scenario():
-    vm = VMManager(force_software=SOFTWARE)
+    vm = VMManager(force_software=SOFTWARE, warm_spare=not SOFTWARE)
     t0 = time.monotonic()
     await vm.start()
-    print(f"\nstart: {time.monotonic() - t0:.1f}s, accel={vm.accel.name}, snapshots={vm.snapshots_work}")
+    print(f"\nstart: {time.monotonic() - t0:.1f}s, accel={vm.accel.name}, "
+          f"snapshots={vm.snapshots_work}, spare={vm.spare_active}")
     try:
         # A reset must wipe changes.
         conn = await vm.root()
         await conn.run("touch /root/should-vanish", check=True)
+        if vm.spare_active:
+            await vm._spare_task          # let the spare finish booting, to time the swap itself
         t0 = time.monotonic()
         await vm.reset()
-        print(f"reset: {time.monotonic() - t0:.1f}s")
+        reset_seconds = time.monotonic() - t0
+        print(f"reset: {reset_seconds:.1f}s")
+        if vm.spare_active:
+            assert reset_seconds < 5, "swapping to a ready spare should take a second or two"
         conn = await vm.root()
         assert (await conn.run("test -e /root/should-vanish")).exit_status != 0
 

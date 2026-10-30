@@ -28,7 +28,8 @@ class Accel:
 SOFTWARE = Accel(name="tcg", cpu="max", hardware=False)
 
 
-def _hardware_candidate() -> Accel | None:
+def hardware_candidate() -> Accel | None:
+    """The accelerator for this OS (not yet tested; see detect)."""
     if sys.platform == "win32":
         return Accel(name="whpx", cpu="host", hardware=True)
     if sys.platform.startswith("linux"):
@@ -60,7 +61,7 @@ def _probe(accel: Accel, seconds: float = 2.0) -> bool:
 
 def detect(force_software: bool = False) -> Accel:
     """Return the best working accelerator."""
-    candidate = _hardware_candidate()
+    candidate = hardware_candidate()
     if candidate and not force_software and _probe(candidate):
         return candidate
     return SOFTWARE

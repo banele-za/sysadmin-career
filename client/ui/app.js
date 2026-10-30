@@ -78,6 +78,12 @@ function setOverlay(text, isError = false) {
   if (!text) term.focus();
 }
 
+function showNotice(text, restart) {
+  $("checkup-notice").hidden = false;
+  $("checkup-notice-text").textContent = text;
+  $("checkup-restart").hidden = !restart;
+}
+
 function bump(id, value) {
   const el = $(id);
   if (el.textContent !== String(value)) {
@@ -101,8 +107,102 @@ const handlers = {
     $("tier-progress").textContent = `${e.tier_solved} / ${e.tier_total}`;
     const badge = $("mode-badge");
     badge.hidden = !e.mode;
-    badge.textContent = e.mode === "slow" ? "Slow mode" : "Fast mode";
+    badge.textContent = e.mode === "slow" ? "Slow mode · Try to fix again" : "Fast mode";
     badge.className = "badge " + (e.mode || "");
+  },
+
+  // ---- checkup screen ----
+
+  checkup(e) {
+    const c = e.checkup;
+    $("checkup").hidden = false;
+    $("checkup-main").hidden = false;
+    $("guide").hidden = true;
+    $("download").hidden = true;
+    if (!e.can_close) $("checkup-notice").hidden = true;
+
+    $("checkup-intro").textContent =
+      e.error ? "Something went wrong while starting the server. Here's what the checkup found:" :
+      c.blocking ? "One thing needs sorting out before the game can start:" :
+      c.mode === "slow" ? "Fast mode isn't available on this computer yet. You can play right now " +
+                          "in slow mode, or try the fixes below first." :
+      "Everything looks good. Your computer is ready.";
+    $("checkup-fake").hidden = !e.fake.length;
+    $("checkup-fake").textContent = `Test mode: pretending ${e.fake.join(", ")} (SYSADMIN_GAME_FAKE)`;
+    $("checkup-error").hidden = !e.error;
+    $("checkup-error").textContent = e.error;
+
+    const list = $("checkup-list");
+    list.innerHTML = "";
+    for (const check of c.checks) {
+      const li = document.createElement("li");
+      li.className = check.status;
+      li.innerHTML = `<span class="dot"></span><div><b></b><div class="msg-text"></div></div>`;
+      li.querySelector("b").textContent = check.title;
+      li.querySelector(".msg-text").textContent = check.message;
+      for (const action of check.actions) {
+        if (action.id === "retry") continue;            // the footer has "Check again"
+        const btn = document.createElement("button");
+        btn.textContent = action.label;
+        btn.dataset.action = action.id;
+        li.appendChild(btn);
+      }
+      list.appendChild(li);
+    }
+
+    // Footer: what can the player do next?
+    const playing = e.can_close;
+    $("checkup-close").hidden = !playing;
+    $("checkup-continue").hidden = playing || c.blocking || c.mode === "slow";
+    $("checkup-continue").textContent = e.error ? "Try again" : "Start playing";
+    $("checkup-slow").hidden = playing || c.blocking || c.mode !== "slow";
+    $("checkup-slow").className = c.mode === "slow" ? "primary" : "";
+    if (e.error && c.mode === "slow" && !c.blocking) $("checkup-slow").textContent = "Try again in slow mode";
+    else $("checkup-slow").textContent = "Play in slow mode";
+    if (playing && e.running_mode === "slow" && c.mode === "fast") {
+      showNotice("Fast mode works now! Close and reopen the game to switch to it.", false);
+    }
+  },
+
+  checkup_notice(e) { showNotice(e.text, e.restart); },
+
+  checkup_closed() { $("checkup").hidden = true; term.focus(); },
+
+  download_progress(e) {
+    $("download").hidden = false;
+    const percent = Math.floor((e.done * 100) / Math.max(e.total, 1));
+    $("download-bar").style.width = percent + "%";
+    $("download-text").textContent =
+      `Downloading the Linux server: ${(e.done / 1e6).toFixed(0)} of ${(e.total / 1e6).toFixed(0)} MB (${percent}%)`;
+  },
+
+  guide(e) {
+    $("checkup-main").hidden = true;
+    $("guide").hidden = false;
+    $("guide-title").textContent = `Turning on the speed boost (${e.brand})`;
+    $("guide-setting").textContent = e.setting;
+    $("guide-placeholder").hidden = !e.placeholder;
+    const steps = $("guide-steps");
+    steps.innerHTML = "";
+    for (const step of e.steps) {
+      const li = document.createElement("li");
+      li.innerHTML = "<b></b><p></p>";
+      li.querySelector("b").textContent = step.title;
+      li.querySelector("p").textContent = step.text;
+      if (step.screen) {
+        const screen = document.createElement("pre");     // placeholder "illustration"
+        screen.className = "bios-screen";
+        screen.textContent = step.screen;
+        li.appendChild(screen);
+      }
+      steps.appendChild(li);
+    }
+    $("guide-notes").innerHTML = "";
+    for (const note of e.notes) {
+      const li = document.createElement("li");
+      li.textContent = note;
+      $("guide-notes").appendChild(li);
+    }
   },
 
   ticket(e) {
@@ -187,6 +287,21 @@ $("next-btn").onclick = () => {
   $("next-btn").hidden = true;
   window.pywebview.api.next_ticket();
 };
+
+// Every checkup / guide button carries data-action="<name>" for Game.checkup_action.
+// Buttons are created on the fly, so one listener on the whole modal handles them.
+$("checkup").addEventListener("click", (event) => {
+  const btn = event.target.closest("button");
+  if (!btn) return;
+  if (btn.hasAttribute("data-dismiss")) { $("checkup-notice").hidden = true; return; }
+  const action = btn.dataset.action;
+  if (!action) return;
+  if (action === "download") btn.disabled = true;       // one download at a time
+  window.pywebview.api.checkup_action(action);
+});
+$("guide-back").onclick = () => { $("guide").hidden = true; $("checkup-main").hidden = false; };
+$("checkup-btn").onclick = () => window.pywebview.api.open_checkup();
+$("mode-badge").onclick = () => window.pywebview.api.open_checkup();
 
 // pywebview injects window.pywebview.api asynchronously; start once it's there.
 window.addEventListener("pywebviewready", () => {

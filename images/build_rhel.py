@@ -50,13 +50,18 @@ SUCCESS_MARKER = "SYSADMIN-GAME-BUILD-OK"
 HERE = Path(__file__).resolve().parent
 CACHE_DIR = HERE / "cache"
 
+# Always build into images/out/. (config.BASE_IMAGE points at the player's
+# downloaded copy when no local build exists yet, so don't use it here.)
+OUT_IMAGE = config.IMAGES_OUT / config.BASE_IMAGE_NAME
+OUT_KEYS = config.IMAGES_OUT / "keys"
+
 
 def ensure_keys() -> tuple[str, str]:
     """Create the game's SSH keys once; return (root_pubkey, player_pubkey)."""
-    config.KEYS_DIR.mkdir(parents=True, exist_ok=True)
+    OUT_KEYS.mkdir(parents=True, exist_ok=True)
     pubkeys = []
-    for path, comment in [(config.ROOT_KEY, "sysadmin-game-root"),
-                          (config.PLAYER_KEY, "sysadmin-game-player")]:
+    for path, comment in [(OUT_KEYS / config.ROOT_KEY.name, "sysadmin-game-root"),
+                          (OUT_KEYS / config.PLAYER_KEY.name, "sysadmin-game-player")]:
         if not path.exists():
             key = asyncssh.generate_private_key("ssh-ed25519", comment=comment)
             key.write_private_key(str(path))
@@ -183,8 +188,8 @@ def main() -> None:
     log = serial_log.read_text(errors="replace")
     if SUCCESS_MARKER not in log:
         sys.exit(f"Build marker missing. cloud-init probably failed; see {serial_log}")
-    work.replace(config.BASE_IMAGE)
-    print(f"Done: {config.BASE_IMAGE}")
+    work.replace(OUT_IMAGE)
+    print(f"Done: {OUT_IMAGE}")
 
 
 if __name__ == "__main__":

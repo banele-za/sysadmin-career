@@ -1,0 +1,9 @@
+# PLACEHOLDER: verify menu paths on real machines before release.
+brand: ASUS
+match: [asus]
+keys: [F2, Delete]
+menus:
+  intel: "Advanced  >  CPU Configuration  >  Intel Virtualization Technology"
+  amd: "Advanced  >  CPU Configuration  >  SVM Mode"
+notes:
+  - "If you see the simple \"EZ Mode\" screen, press F7 to switch to Advanced Mode."

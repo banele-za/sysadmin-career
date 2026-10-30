@@ -31,3 +31,23 @@ The SSH keys are generated once per checkout and reused on rebuilds.
 **Note for release:** every copy of a built image trusts the same two keys,
 and the client ships the private halves. That's fine for a VM reachable only
 on 127.0.0.1, but it's a deliberate trade-off worth revisiting before release.
+
+## Releasing the image to players
+
+```
+.venv\Scripts\python images\release.py
+```
+
+writes `images/release/` (git-ignored): a compressed copy of the image
+(qcow2's own compression, about 1.1 GB -> 600 MB; QEMU reads it directly),
+the two private keys, and `manifest.json` with each file's size and SHA-256.
+Upload all four to one GitHub Release and point `IMAGE_RELEASE_URL` in
+`client/config.py` at the release's download folder. The game downloads
+them on first launch (`client/checkup/download.py`) and refuses any file
+whose checksum doesn't match. Players keep the image in
+`%LOCALAPPDATA%\SysadminGame\images`; a local `images/out/` build wins over it.
+
+Every rebuild generates a new image, so upload it as a new release (new tag)
+rather than replacing files in an old one: the overlay disks of existing
+players are tied to the base image they were made from (the game notices a
+newer base and starts a fresh disk).

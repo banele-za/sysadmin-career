@@ -1,0 +1,9 @@
+# PLACEHOLDER: verify menu paths on real machines before release.
+brand: Lenovo
+match: [lenovo]
+keys: [F2, F1, Fn+F2]
+menus:
+  intel: "Configuration  >  Intel Virtual Technology  (ThinkPads: Security > Virtualization)"
+  amd: "Configuration  >  AMD V(TM) Technology  (or SVM Mode)"
+notes:
+  - "Many Lenovo laptops have a tiny Novo button (a pinhole next to the power button). With the laptop off, press it and choose BIOS Setup."

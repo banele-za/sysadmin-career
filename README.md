@@ -2,8 +2,9 @@
 
 A desktop game that teaches Linux administration (RHCSA / SUSE SCA style
 objectives) by having you fix real problems on a hidden Linux VM.
-Design: [docs/DESIGN.md](docs/DESIGN.md). This is Milestone 1, the vertical
-slice: Red Hat track, Windows, a five-ticket ladder (files, then permissions).
+Design: [docs/DESIGN.md](docs/DESIGN.md). Done so far: Milestone 1 (vertical
+slice: Red Hat track, Windows, a five-ticket ladder) and Milestone 2 (first-run
+checkup, one-click fixes, BIOS guides, slow mode, image download).
 
 ## Setup (Windows, development)
 
@@ -16,25 +17,58 @@ py -3.12 -m venv .venv          # or: & "$env:LOCALAPPDATA\Programs\Python\Pytho
 .venv\Scripts\python -m client.app              # play
 ```
 
-Fast mode needs the Windows feature "Windows Hypervisor Platform". Without it
-the game still runs in slow (software) mode; force that with `--software`.
+Without `build_rhel.py`, the game downloads the image instead (players do
+this), from `IMAGE_RELEASE_URL` in `client/config.py`.
 
-The first launch boots Linux and saves a snapshot (about a minute).
-After that, every ticket starts from that snapshot in a few seconds.
+## First launch: the checkup
 
-Your save and the VM's working disk live in `%LOCALAPPDATA%\SysadminGame`
-(override with `SYSADMIN_GAME_DATA`). Delete `vm\overlay.qcow2` there for a
-factory-fresh VM.
+Every launch runs a quick checkup (Windows settings, BIOS virtualization, RAM,
+disk, image, and a QEMU speed test). The screen only appears on the first
+launch, when something blocks the game, or when fast mode stops working; the
+**Checkup** button in the top bar opens it any time.
+
+- **Fast mode** (hardware virtualization, WHPX). Resets reboot the VM, since
+  WHPX can't snapshot, but with 8 GB+ RAM a **warm spare** VM boots in the
+  background, so "Next ticket" is near-instant.
+- **Slow mode** (software emulation): nobody is locked out. The first boot is
+  slow; after that, resets restore a snapshot in seconds. Force it with `--software`.
+
+Test the unhappy paths without breaking your PC:
+
+```powershell
+$env:SYSADMIN_GAME_FAKE = "bios-off,low-ram"   # also: feature-off, tiny-ram, low-disk, no-image, offline
+$env:SYSADMIN_GAME_DATA = "$env:TEMP\sg-test"  # a throwaway save, so the first-run screen shows
+.venv\Scripts\python -m client.app
+```
+
+While faking, the fixes only describe what they would do. To test on a
+second PC, follow [docs/FRESH-LAPTOP-TEST.md](docs/FRESH-LAPTOP-TEST.md).
+
+Your save, the VM's working disks and `game.log` live in
+`%LOCALAPPDATA%\SysadminGame` (override with `SYSADMIN_GAME_DATA`). Delete
+`vm\` there for a factory-fresh VM.
+
+## Publishing the image
+
+```powershell
+.venv\Scripts\python images\release.py     # writes images\release\ (about 600 MB)
+```
+
+Upload the four files in `images\release\` to one GitHub Release, and set
+`IMAGE_RELEASE_URL` to `https://github.com/<owner>/<repo>/releases/download/<tag>/`.
+The game checks every file against `manifest.json`'s SHA-256 before using it.
 
 ## Tests
 
 ```powershell
-.venv\Scripts\python -m pytest tests\test_engine.py tests\test_save.py tests\test_progression.py   # fast, no VM
-.venv\Scripts\python -m pytest tests\test_vm.py -s                     # boots the real VM
+.venv\Scripts\python -m pytest tests --ignore=tests\test_vm.py --ignore=tests\test_game.py   # fast, no VM
+.venv\Scripts\python -m pytest tests\test_vm.py -s                        # every ticket on the real VM
+.venv\Scripts\python -m pytest tests\test_game.py -s                      # headless playthrough
 ```
 
 `test_vm.py` runs every ticket twice with different params: grading must fail
-after `break.sh` and pass after the ticket's `solution.sh`.
+after `break.sh` and pass after the ticket's `solution.sh`. Set
+`TEST_SOFTWARE=1` to run it in slow mode.
 
 ## Layout
 
@@ -43,7 +77,8 @@ client/
   app.py          window + threads (pywebview)
   game.py         the ticket flow: reset -> break -> play -> grade -> reward
   config.py       every path and setting
-  vm/             accel detection, QEMU command line, QMP client, VM manager
+  checkup/        first-run checks, fixes, BIOS guides, image download, diagnostic report
+  vm/             accel detection, QEMU command line, QMP client, VM manager (+ warm spare)
   ssh/            asyncssh helpers and the terminal bridge
   engine/         ticket loader, params, grader, economy, progression (the ladder)
   save/           SQLite save file
@@ -53,7 +88,9 @@ content/
   objectives/     objective keys tickets can reference
   characters/     display names for ticket characters
   tickets/<tier>/<id>/   ticket.yaml, break.sh, grade.sh, solution.sh
-images/           base image build script and cloud-init config
+guides/           BIOS guide data per PC maker (placeholder content)
+images/           base image build + release scripts, cloud-init config
+docs/             design doc, fresh-laptop test checklist
 tests/
 ```
 

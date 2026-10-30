@@ -1,4 +1,4 @@
-"""The game session: ties the VM, tickets, terminal, mentor and save file together.
+"""The game session: ties the checkup, VM, tickets, terminal, mentor and save file together.
 
 Everything here runs on one asyncio event loop. It talks to the UI only
 through `emit(event_dict)`, so it doesn't know or care that the UI is a web page.
@@ -6,6 +6,11 @@ through `emit(event_dict)`, so it doesn't know or care that the UI is a web page
 Events sent to the UI (the "type" field):
   status    {text}                   progress messages while the VM starts or resets
   stats     {xp, rep, mode, tier...} counters and career progress in the top bar
+  checkup   {checkup, error, ...}    show the checkup screen (see _show_checkup)
+  checkup_notice {text, restart}     result of a fix, shown on the checkup screen
+  guide     {brand, steps, ...}      the BIOS guide
+  download_progress {done, total}    image download progress, in bytes
+  checkup_closed {}                  hide the checkup screen
   ticket    {...}                    a new ticket to show
   term      {data}                   terminal output (base64)
   term_reset {}                      clear the terminal for a new ticket
@@ -16,19 +21,23 @@ Events sent to the UI (the "type" field):
 
 import asyncio
 import base64
-import traceback
+import logging
 from typing import Callable
 
 import yaml
 
 from client import config
+from client.checkup import checks as checks_mod, download, facts as facts_mod, fixes, guides, report
 from client.engine import economy, grader, progression, tickets
 from client.save.db import SaveFile
 from client.ssh.bridge import TerminalBridge
+from client.vm import accel
 from client.vm.manager import VMManager
 
+log = logging.getLogger(__name__)
+
 TRACK = "rhel"
-MENTOR_POLL_SECONDS = 2.0
+MENTOR_POLL_SECONDS = {"fast": 2.0, "slow": 5.0}   # slow mode: leave the CPU to the VM
 
 
 def load_cast() -> dict:
@@ -39,13 +48,17 @@ def load_cast() -> dict:
 class Game:
     def __init__(self, emit: Callable[[dict], None], force_software: bool = False):
         self.emit = emit
-        self.vm = VMManager(on_status=lambda text: emit({"type": "status", "text": text}),
-                            force_software=force_software)
+        self.force_software = force_software
+        self.vm: VMManager | None = None          # created once the checkup has passed
         self.save = SaveFile(config.SAVE_DB, track=TRACK)
         self.tickets = tickets.load_all(config.TICKETS_DIR, track=TRACK)
         self.cast = load_cast()
         self.terminal = TerminalBridge(on_output=self._on_term_output, on_closed=self._on_term_closed)
         self.term_size = (80, 24)
+
+        self.facts: facts_mod.Facts | None = None
+        self.checkup: checks_mod.Checkup | None = None
+        self._checkup_done: asyncio.Event | None = None   # set when the player may continue
 
         self.current: tickets.TicketInstance | None = None
         self.attempt_id: int | None = None
@@ -54,16 +67,36 @@ class Game:
         self._mentor_ack = asyncio.Event()
         self._busy = asyncio.Lock()      # one reset/grade at a time
 
+    @property
+    def mode(self) -> str:
+        if self.vm and self.vm.accel:
+            return "fast" if self.vm.accel.hardware else "slow"
+        return ""
+
     # ---- called by the UI (via app.py) ------------------------------------
 
     async def start(self) -> None:
-        try:
-            self._emit_stats()
-            await self.vm.start()
-            self._emit_stats()
-            await self.next_ticket()
-        except Exception as e:
-            self._report(e)
+        """Checkup, then VM, then the first ticket.
+
+        If the VM fails to start, show the checkup again with the error
+        (the design doc: it runs "whenever something breaks") and retry
+        when the player says so. Nobody ends on a dead error screen.
+        """
+        self._emit_stats()
+        error = ""
+        while True:
+            try:
+                await self._checkup_gate(error)
+                await self._start_vm()
+                break
+            except Exception as e:
+                self._log_exception(e)
+                error = f"{type(e).__name__}: {e}"
+                if self.vm:
+                    await self.vm.stop()
+                    self.vm = None
+        self._emit_stats()
+        await self.next_ticket()
 
     async def next_ticket(self) -> None:
         async with self._busy:
@@ -82,6 +115,19 @@ class Game:
             except Exception as e:
                 self._report(e)
 
+    async def open_checkup(self) -> None:
+        """The Settings button / "Try to fix again": run the checkup while playing."""
+        await self._run_checkup()
+        self._show_checkup(can_close=True)
+
+    async def checkup_action(self, action: str) -> None:
+        """A button on the checkup screen or the BIOS guide."""
+        try:
+            await self._checkup_action(action)
+        except Exception as e:
+            self._log_exception(e)
+            self.emit({"type": "checkup_notice", "text": f"That didn't work: {e}", "restart": False})
+
     def mentor_ack(self) -> None:
         self._mentor_ack.set()
 
@@ -95,8 +141,119 @@ class Game:
     async def shutdown(self) -> None:
         self._stop_mentor()
         await self.terminal.close()
-        await self.vm.stop()
+        if self.vm:
+            await self.vm.stop()
         self.save.close()
+
+    # ---- checkup -------------------------------------------------------------
+
+    async def _run_checkup(self) -> None:
+        self.emit({"type": "status", "text": "Checking your computer..."})
+        self.facts = await asyncio.to_thread(facts_mod.gather)
+        self.checkup = checks_mod.evaluate(self.facts)
+        log.info("checkup: mode=%s blocking=%s %s", self.checkup.mode, self.checkup.blocking,
+                 [(c.key, c.status) for c in self.checkup.checks])
+
+    async def _checkup_gate(self, error: str) -> None:
+        """Run the checkup; show its screen only when the player needs to see it."""
+        await self._run_checkup()
+        first_run = not self.save.get_setting("checkup_seen", False)
+        unexplained_slow = (self.checkup.mode == "slow" and not self.force_software
+                            and not self.save.get_setting("slow_mode_accepted", False))
+        if first_run or error or self.checkup.blocking or unexplained_slow:
+            self._checkup_done = asyncio.Event()
+            self._show_checkup(error=error, first_run=first_run)
+            await self._checkup_done.wait()
+            self.emit({"type": "checkup_closed"})
+        self.save.set_setting("checkup_seen", True)
+        if self.checkup.mode == "fast":
+            # Fixed since last time: if fast mode ever breaks again, say so.
+            self.save.set_setting("slow_mode_accepted", False)
+
+    def _show_checkup(self, error: str = "", first_run: bool = False, can_close: bool = False) -> None:
+        self.emit({
+            "type": "checkup",
+            "checkup": self.checkup.as_dict(),
+            "error": error,
+            "first_run": first_run,
+            "can_close": can_close,           # opened from Settings while playing
+            "running_mode": self.mode,        # what the VM uses right now ("" if not started)
+            "fake": self.facts.fake,
+        })
+
+    async def _checkup_action(self, action: str) -> None:
+        notice = lambda text, restart=False: self.emit(
+            {"type": "checkup_notice", "text": text, "restart": restart})
+
+        if action in ("retry", "refresh"):
+            await self._run_checkup()
+            self._show_checkup(can_close=self._checkup_done is None or self._checkup_done.is_set())
+        elif action == "continue":
+            if self.checkup and not self.checkup.blocking and self._checkup_done:
+                self._checkup_done.set()
+        elif action == "slow_mode":
+            self.save.set_setting("slow_mode_accepted", True)
+            if self._checkup_done and not self.checkup.blocking:
+                self._checkup_done.set()
+            else:
+                self.emit({"type": "checkup_closed"})
+        elif action == "close":
+            self.emit({"type": "checkup_closed"})
+        elif action == "enable_feature":
+            result = await asyncio.to_thread(fixes.enable_windows_feature)
+            notice(result.message, result.needs_restart)
+        elif action == "kvm_fix":
+            result = await asyncio.to_thread(fixes.fix_kvm_permissions)
+            notice(result.message)
+        elif action == "restart_now":
+            notice((await asyncio.to_thread(fixes.restart_computer)).message)
+        elif action == "restart_bios":
+            notice((await asyncio.to_thread(fixes.restart_computer, True)).message)
+        elif action == "bios_guide":
+            self.emit({"type": "guide", **guides.build(self.facts.manufacturer, self.facts.cpu_vendor)})
+        elif action == "report":
+            text = report.build(self.facts, self.checkup)
+            notice(await asyncio.to_thread(report.save_and_copy, text))
+        elif action == "download":
+            await self._download_image()
+        else:
+            raise ValueError(f"unknown checkup action {action!r}")
+
+    async def _download_image(self) -> None:
+        loop = asyncio.get_running_loop()
+        last_percent = -1
+
+        def progress(done: int, total: int) -> None:     # runs on the download thread
+            nonlocal last_percent
+            percent = done * 100 // max(total, 1)
+            if percent != last_percent:
+                last_percent = percent
+                loop.call_soon_threadsafe(self.emit, {"type": "download_progress",
+                                                      "done": done, "total": total})
+
+        try:
+            await asyncio.to_thread(download.download_all, config.IMAGE_RELEASE_URL,
+                                    config.IMAGES_DIR, progress)
+        except (download.DownloadError, OSError, ValueError) as e:
+            self._log_exception(e)
+            self.emit({"type": "checkup_notice", "text": f"The download didn't finish: {e}",
+                       "restart": False})
+        await self._run_checkup()
+        self._show_checkup()
+
+    async def _start_vm(self) -> None:
+        c = self.checkup
+        if self.force_software or c.mode == "slow":
+            chosen = accel.SOFTWARE
+        else:
+            chosen = accel.hardware_candidate()
+        self.vm = VMManager(
+            on_status=lambda text: self.emit({"type": "status", "text": text}),
+            accel=chosen,
+            memory_mb=c.vm_memory_mb,
+            warm_spare=c.warm_spare and chosen.hardware,
+        )
+        await self.vm.start()
 
     # ---- ticket flow -------------------------------------------------------
 
@@ -166,6 +323,7 @@ class Game:
 
     async def _run_mentor(self, instance: tickets.TicketInstance) -> None:
         """Show each step; wait for its check to pass (or for 'Got it')."""
+        poll = MENTOR_POLL_SECONDS.get(self.mode, 2.0)
         try:
             conn = await self.vm.root()
             for step in instance.ticket.mentor_steps:
@@ -176,7 +334,7 @@ class Game:
                     await self._mentor_ack.wait()
                     continue
                 while not await grader.mentor_check(conn, instance, step.check):
-                    await asyncio.sleep(MENTOR_POLL_SECONDS)
+                    await asyncio.sleep(poll)
                 self.emit({"type": "mentor_step_done"})
             self.emit({"type": "mentor", "text": "That's everything. Press Submit when you're ready!",
                        "needs_ack": False})
@@ -208,13 +366,13 @@ class Game:
 
     def _emit_stats(self) -> None:
         p = self.save.player()
-        mode = None
-        if self.vm.accel:
-            mode = "fast" if self.vm.accel.hardware else "slow"
         prog = progression.progress(self.tickets, self.save.solved_ticket_ids())
-        self.emit({"type": "stats", "xp": p.xp, "rep": p.rep, "mode": mode,
+        self.emit({"type": "stats", "xp": p.xp, "rep": p.rep, "mode": self.mode or None,
                    "tier": prog.tier_name, "tier_solved": prog.solved, "tier_total": prog.total})
 
+    def _log_exception(self, e: Exception) -> None:
+        log.error("%s: %s", type(e).__name__, e, exc_info=e)
+
     def _report(self, e: Exception) -> None:
-        traceback.print_exc()
+        self._log_exception(e)
         self.emit({"type": "error", "text": f"{type(e).__name__}: {e}"})

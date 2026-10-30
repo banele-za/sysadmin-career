@@ -1,0 +1,9 @@
+# PLACEHOLDER: verify menu paths on real machines before release.
+brand: MSI
+match: [msi, micro-star]
+keys: [Delete, F2]
+menus:
+  intel: "OC  (or Advanced)  >  CPU Features  >  Intel Virtualization Tech"
+  amd: "OC  (or Advanced)  >  CPU Features  >  SVM Mode"
+notes:
+  - "Press F7 if you start in the simple \"EZ Mode\" screen."

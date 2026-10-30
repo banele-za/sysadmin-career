@@ -1,0 +1,19 @@
+# BIOS guide used when we don't have one for the PC's brand.
+# Every guide has the same shape (see client/checkup/guides.py):
+#   brand:    shown in the title
+#   match:    words to look for in the PC maker's name (lowercase)
+#   keys:     keys to press while the PC starts, if "Restart into BIOS" can't be used
+#   menus:    where the setting usually lives, by CPU maker
+#   notes:    brand-specific tips
+# Steps are written once in guides.py; these files only hold what differs.
+#
+# PLACEHOLDER content and art: menu paths vary by model and BIOS version.
+# Verify against real machines before release.
+brand: your PC
+match: []
+keys: [F2, Delete, F10, Esc]
+menus:
+  intel: "Advanced  >  CPU Configuration  >  Intel Virtualization Technology"
+  amd: "Advanced  >  CPU Configuration  >  SVM Mode"
+notes:
+  - "The setting may also be under a tab called Configuration, Security or System."
