@@ -12,15 +12,23 @@ from pathlib import Path
 REPO = Path(SPECPATH).parents[1]
 
 # Libraries we must NOT ship, but take from the player's system instead.
-# They're on every Linux desktop and work hand in hand with its graphics
-# driver; an older copy from the build machine next to a newer driver breaks
-# drawing ("Could not initialize GLX"). This mirrors the AppImage project's
-# "excludelist". The less common X helpers (libxcb-cursor, -icccm, -image,
-# -keysyms, -render-util, -util) stay inside, since many systems lack them.
+#
+# The player's graphics driver (e.g. Mesa) is loaded into the game's process
+# and needs these libraries in versions at least as new as its own. If the
+# bundle carries older copies from the build machine (Ubuntu 22.04), those
+# win, the driver fails to load, and Qt dies with "Could not initialize GLX".
+# Every desktop Linux has them, in the same or newer versions than 22.04
+# (builds run on the oldest supported system for exactly this reason).
+# The less common X helpers (libxcb-cursor, -icccm, -image, -keysyms,
+# -render-util, -util) stay inside, since many systems lack them.
 FROM_THE_SYSTEM = re.compile(
     r"^lib("
-    r"GL|EGL|GLX|GLdispatch|OpenGL|gbm|drm"                # graphics drivers
-    r"|X11|X11-xcb|xcb|xcb-(glx|randr|render|shape|shm|sync|xfixes|xkb|dri2|dri3|present)"
+    r"GL|EGL|GLX|GLdispatch|OpenGL|gbm|drm|drm_\w+"           # graphics drivers
+    r"|X11|X11-xcb|Xau|Xdmcp|Xext|xshmfence|xcb"               # talking to the X server
+    r"|xcb-(glx|randr|render|shape|shm|sync|xfixes|xkb|dri2|dri3|present)"
+    r"|wayland-(client|server|egl|cursor)"
+    r"|stdc\+\+|gcc_s|z|zstd|lzma|expat|ffi|bsd|md|tinfo"     # basics the driver links to
+    r"|elf|sensors|xml2|edit"
     r"|fontconfig|freetype|asound|glib-2\.0|gobject-2\.0|gio-2\.0|gthread-2\.0"
     r")\.so")
 
