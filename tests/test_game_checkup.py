@@ -58,14 +58,25 @@ class UI(list):
         return [e["type"] for e in self]
 
 
-async def launch(ui: UI, *clicks: str, settle: float = 0.05) -> game_mod.Game:
-    """Start a game session, pressing the given checkup buttons in order."""
+async def shown(ui: UI, times: int, timeout: float = 5) -> None:
+    """Wait until the checkup screen has been shown `times` times."""
+    async with asyncio.timeout(timeout):
+        while ui.types().count("checkup") < times:
+            await asyncio.sleep(0.01)
+
+
+async def launch(ui: UI, *clicks: str) -> game_mod.Game:
+    """Start a game session, pressing one button on each checkup screen shown.
+
+    Waits for each screen to actually appear before clicking: a fixed pause
+    was too short on GitHub's slower machines, and the click got lost.
+    """
     g = game_mod.Game(ui)
     starting = asyncio.create_task(g.start())
-    for action in clicks:
-        await asyncio.sleep(settle)
+    for n, action in enumerate(clicks, start=1):
+        await shown(ui, n)
         await g.checkup_action(action)
-    await asyncio.wait_for(starting, 2)
+    await asyncio.wait_for(starting, 5)
     g.save.close()
     return g
 
@@ -109,14 +120,14 @@ def test_blocking_problem_holds_the_game_until_fixed(world):
         ui = UI()
         g = game_mod.Game(ui)
         starting = asyncio.create_task(g.start())
-        await asyncio.sleep(0.05)
+        await shown(ui, 1)
         await g.checkup_action("continue")             # ignored: no image yet
-        await asyncio.sleep(0.05)
+        await asyncio.sleep(0.2)
         assert not starting.done()
         world.facts = facts()                          # e.g. the internet came back + downloaded
         await g.checkup_action("retry")
         await g.checkup_action("continue")
-        await asyncio.wait_for(starting, 2)
+        await asyncio.wait_for(starting, 5)
         assert ui.types().count("checkup") == 2
         g.save.close()
 
@@ -127,9 +138,9 @@ def test_vm_failure_reopens_checkup_with_error(world):
     world.vm_failures = 1
     ui = UI()
     run(launch(ui, "continue", "continue"))            # first run, then "Try again"
-    shown = [e for e in ui if e["type"] == "checkup"]
-    assert shown[0]["error"] == ""
-    assert "QEMU failed to start" in shown[1]["error"]
+    screens = [e for e in ui if e["type"] == "checkup"]
+    assert screens[0]["error"] == ""
+    assert "QEMU failed to start" in screens[1]["error"]
     assert "ticket_started" in ui.types()
 
 
@@ -147,7 +158,7 @@ def test_bios_guide_and_fake_fix(world, monkeypatch):
         ui = UI()
         g = game_mod.Game(ui)
         starting = asyncio.create_task(g.start())
-        await asyncio.sleep(0.05)
+        await shown(ui, 1)
         await g.checkup_action("bios_guide")
         guide = next(e for e in ui if e["type"] == "guide")
         assert guide["brand"] == "Acer" and "SVM" in guide["setting"]
@@ -156,7 +167,7 @@ def test_bios_guide_and_fake_fix(world, monkeypatch):
         expected = " ".join(host.restart_command(into_firmware=True))   # shutdown /r ... /fw on Windows
         assert "Test mode" in notice["text"] and expected in notice["text"]
         await g.checkup_action("slow_mode")
-        await asyncio.wait_for(starting, 2)
+        await asyncio.wait_for(starting, 5)
         g.save.close()
 
     run(scenario())
