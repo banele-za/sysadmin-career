@@ -43,8 +43,10 @@ PLAYER_USER = "admin"
 
 # Where the image download lives: a folder URL holding manifest.json and the
 # files it lists (made by images/release.py, uploaded to a GitHub Release).
-# Empty until the release exists; override with SYSADMIN_GAME_IMAGE_URL.
-IMAGE_RELEASE_URL = os.environ.get("SYSADMIN_GAME_IMAGE_URL", "")
+# A new image means a new release tag here. Override with SYSADMIN_GAME_IMAGE_URL.
+IMAGE_RELEASE_URL = os.environ.get(
+    "SYSADMIN_GAME_IMAGE_URL",
+    "https://github.com/banele-za/sysadmin-career/releases/download/image-v1")
 
 SAVE_DB = DATA_DIR / "save.db"
 OVERLAY_DISK = DATA_DIR / "vm" / "overlay.qcow2"   # thin layer on top of BASE_IMAGE
