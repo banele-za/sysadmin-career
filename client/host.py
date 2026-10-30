@@ -93,6 +93,12 @@ def restart_command(into_firmware: bool) -> list[str]:
 
 # ---- the screen --------------------------------------------------------------
 
+# Which web view pywebview draws the game window with. Windows has WebView2
+# built in. On Linux we ship Qt's web view inside the AppImage: the distro's
+# own (WebKitGTK) may be missing, and then the window, including the
+# checkup that could explain the problem, couldn't open at all.
+WEBVIEW_GUI = "qt" if LINUX else None      # None: pywebview's default
+
 def work_area() -> tuple[int, int, int, int] | None:
     """(left, top, width, height) of the main screen minus the taskbar, if known.
 

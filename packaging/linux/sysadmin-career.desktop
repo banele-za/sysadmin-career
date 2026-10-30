@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Sysadmin Career
+Comment=Learn Linux administration by fixing a real server
+Exec=sysadmin-career
+Icon=sysadmin-career
+Categories=Game;Education;
+Terminal=false

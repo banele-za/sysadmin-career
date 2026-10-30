@@ -120,6 +120,12 @@ def _firmware(f: Facts) -> Check:
     # A running hypervisor proves the BIOS switch is on.
     if f.smoke_ok or f.hypervisor_present or f.firmware_virt or f.kvm_exists:
         return Check("firmware", title, GREEN, "Your computer's speed boost is switched on.")
+    if f.host_is_vm:
+        # Inside a VM the BIOS guide can't help: the outer system decides
+        # whether virtualization is passed through ("nested virtualization").
+        return Check("firmware", title, YELLOW,
+                     "This Linux is itself running in a virtual machine (such as WSL) that "
+                     "doesn't pass the speed boost through, so the game uses slow mode.")
     if f.firmware_virt is False or f.kvm_exists is False:
         return Check("firmware", title, RED,
                      "Your computer's speed boost is switched off in the BIOS.",

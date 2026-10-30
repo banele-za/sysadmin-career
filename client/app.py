@@ -111,7 +111,8 @@ def main() -> None:
         background_color="#14161a",
     )
     emitter.window = window
-    webview.start(debug=args.debug)
+    # icon: used on Linux only (on Windows the .exe's own icon is shown).
+    webview.start(gui=host.WEBVIEW_GUI, debug=args.debug, icon=str(config.ICON))
 
     # The window was closed: shut the VM down cleanly before exiting.
     logging.getLogger(__name__).info("window closed, shutting down VM")
@@ -130,27 +131,23 @@ def _setup_logging() -> None:
     logging.getLogger("asyncssh").setLevel(logging.WARNING)    # very chatty at INFO
 
 
-def _window_geometry() -> tuple[int, int, int, int]:
+def _window_geometry() -> tuple[int, int, int | None, int | None]:
     """(width, height, x, y): up to 1400x860, centered in the usable screen area.
 
     "Usable" means without the taskbar: pywebview's default spot can leave
     the bottom of a large window hidden behind it.
+
+    Only Windows tells us the usable area before the window exists. On Linux
+    we pick a size that fits a 1366x768 laptop and let the desktop's window
+    manager place it (x, y = None). (pywebview's screen list isn't ready
+    before Qt starts, and guessing placed the window half off-screen.)
     """
-    left, top, width, height = _work_area()
+    area = host.work_area()
+    if area is None:
+        return 1280, 720, None, None
+    left, top, width, height = area
     w, h = min(1400, int(width * 0.92)), min(860, int(height * 0.92))
     return w, h, left + (width - w) // 2, top + (height - h) // 2
-
-
-def _work_area() -> tuple[int, int, int, int]:
-    """(left, top, width, height) of the primary screen minus the taskbar."""
-    area = host.work_area()
-    if area:
-        return area
-    try:
-        screen = webview.screens[0]
-        return 0, 0, screen.width, screen.height
-    except (IndexError, AttributeError):
-        return 0, 0, 1366, 768
 
 
 async def _make_game(emit, force_software: bool) -> Game:

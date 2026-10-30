@@ -2,3 +2,11 @@ asyncssh==2.24.1
 pywebview==6.2.1
 PyYAML==6.0.3
 pytest==9.1.1
+# Linux: the game window's web view comes from Qt (bundled in the AppImage),
+# so it opens on any distro. Windows uses the built-in WebView2 instead.
+# PyQt6 and PyQt6-WebEngine must be the same version.
+PyQt6==6.11.0; sys_platform == "linux"
+PyQt6-Qt6==6.11.2; sys_platform == "linux"
+PyQt6-WebEngine==6.11.0; sys_platform == "linux"
+PyQt6-WebEngine-Qt6==6.11.2; sys_platform == "linux"
+QtPy==2.4.3; sys_platform == "linux"

@@ -24,7 +24,7 @@ datas = [
 ]
 
 a = Analysis(
-    [str(REPO / "packaging" / "windows" / "launch.py")],
+    [str(REPO / "packaging" / "launch.py")],
     pathex=[str(REPO)],                    # so `import client` works
     datas=datas,
     # pywebview picks its Windows backend at runtime; name it so it's included.
@@ -38,6 +38,7 @@ exe = EXE(
     exclude_binaries=True,
     name="SysadminCareer",
     console=False,                         # a game window, not a terminal
+    icon=str(REPO / "packaging" / "icons" / "icon.ico"),
 )
 
 coll = COLLECT(exe, a.binaries, a.datas, name="SysadminCareer")

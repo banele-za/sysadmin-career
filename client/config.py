@@ -22,6 +22,7 @@ VERSION_FILE = REPO_ROOT / "VERSION"
 CONTENT_DIR = REPO_ROOT / "content"
 TICKETS_DIR = CONTENT_DIR / "tickets"
 UI_DIR = REPO_ROOT / "client" / "ui"
+ICON = REPO_ROOT / "packaging" / "icons" / "icon.png"    # window icon on Linux
 
 DATA_DIR = host.data_dir()     # save file, VM disks, downloaded image
 

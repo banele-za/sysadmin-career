@@ -15,6 +15,9 @@ packages keep theirs in their `*.dist-info` folder; xterm.js's are in
 | [pywebview](https://pywebview.flowrl.com/) | the game window | BSD-3-Clause | https://github.com/r0x0r/pywebview |
 | bottle, proxy_tools | pywebview helpers | MIT | https://github.com/bottlepy/bottle, https://github.com/jtushman/proxy_tools |
 | pythonnet, clr_loader | pywebview on Windows | MIT | https://github.com/pythonnet/pythonnet, https://github.com/pythonnet/clr-loader |
+| [Qt 6](https://www.qt.io/) with Qt WebEngine (Linux builds only) | the game window's web view | LGPL-3.0; Qt WebEngine includes Chromium (BSD-3-Clause and others, listed in its own notices) | https://download.qt.io/official_releases/qt/ |
+| [PyQt6](https://www.riverbankcomputing.com/software/pyqt/), PyQt6-WebEngine (Linux builds only) | Python bindings for Qt | GPL-3.0 | https://pypi.org/project/PyQt6/#files (source archives) |
+| QtPy (Linux builds only) | pywebview's Qt adapter | MIT | https://github.com/spyder-ide/qtpy |
 | [AsyncSSH](https://github.com/ronf/asyncssh) | SSH connection to the VM | EPL-2.0 or GPL-2.0-or-later (used under the GPL) | https://github.com/ronf/asyncssh |
 | cryptography (includes OpenSSL) | AsyncSSH's encryption | Apache-2.0 or BSD-3-Clause; OpenSSL: Apache-2.0 | https://github.com/pyca/cryptography |
 | cffi, pycparser | cryptography helpers | MIT-0, BSD-3-Clause | https://github.com/python-cffi/cffi, https://github.com/eliben/pycparser |
@@ -27,7 +30,9 @@ network socket, it isn't built into the game's own code. On Linux the game
 uses the QEMU package from your distribution instead of shipping one.
 
 The Windows WebView2 runtime that draws the game window is part of Windows
-and isn't shipped with the game.
+and isn't shipped with the game. The Linux AppImage is packed with
+[appimagetool](https://github.com/AppImage/appimagetool) (MIT), whose small
+start-up program becomes part of the AppImage file.
 
 ## Downloaded on first launch
 

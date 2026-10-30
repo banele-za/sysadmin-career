@@ -7,7 +7,7 @@ import asyncio
 
 import pytest
 
-from client import config, game as game_mod
+from client import config, game as game_mod, host
 from client.checkup.facts import GB, Facts
 
 
@@ -153,7 +153,8 @@ def test_bios_guide_and_fake_fix(world, monkeypatch):
         assert guide["brand"] == "Acer" and "SVM" in guide["setting"]
         await g.checkup_action("restart_bios")
         notice = [e for e in ui if e["type"] == "checkup_notice"][-1]
-        assert "Test mode" in notice["text"] and "/fw" in notice["text"]
+        expected = " ".join(host.restart_command(into_firmware=True))   # shutdown /r ... /fw on Windows
+        assert "Test mode" in notice["text"] and expected in notice["text"]
         await g.checkup_action("slow_mode")
         await asyncio.wait_for(starting, 2)
         g.save.close()

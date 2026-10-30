@@ -51,6 +51,23 @@ on Linux (override with `SYSADMIN_GAME_DATA`). Delete `vm` there for a
 factory-fresh VM. Everything that differs between Windows and Linux is in
 `client/host.py`.
 
+## Setup (Linux, development)
+
+Tested on Ubuntu 24.04. The game window uses Qt's web view (installed by
+pip); QEMU comes from your distribution, and the game's checkup offers to
+install it on first launch.
+
+```bash
+sudo apt install python3-venv libxcb-cursor0 libnss3 libxkbcommon-x11-0
+python3 -m venv ~/venv
+~/venv/bin/pip install -r requirements.txt
+~/venv/bin/python -m client.app
+```
+
+The Linux game is built as a folder with `packaging/linux/build.py` (needs
+`requirements-build.txt`); that script then packs it into an AppImage with
+appimagetool.
+
 ## Building the Windows installer
 
 ```powershell

@@ -135,6 +135,14 @@ def test_kvm_not_allowed_offers_fix_and_slow_mode():
     assert c.mode == "slow" and not c.blocking
 
 
+def test_linux_inside_a_vm_explains_instead_of_blaming_the_bios():
+    # Seen in WSL2: no /dev/kvm because nested virtualization is off.
+    c = checks.evaluate(linux(kvm_exists=False, kvm_accessible=False, smoke_ok=False, host_is_vm=True))
+    firmware = status(c, "firmware")
+    assert firmware.status == "yellow" and "virtual machine" in firmware.message
+    assert firmware.actions == [] and c.mode == "slow"
+
+
 def test_no_dev_kvm_points_at_the_bios():
     c = checks.evaluate(linux(kvm_exists=False, kvm_accessible=False, smoke_ok=False))
     assert status(c, "firmware").status == RED

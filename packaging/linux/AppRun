@@ -1,0 +1,12 @@
+#!/bin/sh
+# The AppImage runs this when the player starts the game. $APPDIR is the
+# folder the AppImage is mounted at.
+
+# Qt's web view (Chromium inside) normally isolates its page-drawing
+# processes with Linux user namespaces. Several distributions (Ubuntu 24.04
+# and newer) block those for apps that aren't specially registered, and the
+# web view then refuses to start. Our window only ever shows the game's own
+# local files, never web pages, so we turn that isolation off.
+export QTWEBENGINE_DISABLE_SANDBOX=1
+
+exec "$APPDIR/usr/lib/sysadmin-career/sysadmin-career" "$@"

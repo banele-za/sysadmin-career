@@ -55,6 +55,7 @@ class Facts:
     windows_features: dict = field(default_factory=dict)  # name -> "enabled" / "disabled" / "absent"
     kvm_exists: bool | None = None         # Linux
     kvm_accessible: bool | None = None     # Linux
+    host_is_vm: bool | None = None         # Linux: this computer is itself a VM (e.g. WSL)
     qemu_found: bool = True                # the program that runs the VM (Linux: a distro package)
     # Image and download.
     image_present: bool = False
@@ -141,13 +142,16 @@ def _windows_info() -> dict:
 def _linux_info() -> dict:
     """The same facts as _WMI_SCRIPT, from Linux's own files."""
     release = host.os_release()
-    cpu, vendor, _flags = host.cpu_info()
+    cpu, vendor, flags = host.cpu_info()
     info: dict = {
         "os_name": f"{release.get('PRETTY_NAME', 'Linux')} (kernel {os.uname().release})",
         # The firmware's own description of the PC; readable by any user.
         "manufacturer": host.read_text("/sys/class/dmi/id/sys_vendor"),
         "model": host.read_text("/sys/class/dmi/id/product_name"),
         "cpu": cpu, "cpu_vendor": vendor,          # "GenuineIntel" / "AuthenticAMD"
+        # The CPU sets the "hypervisor" flag when this Linux is itself a
+        # virtual machine (WSL, VirtualBox, a cloud server...).
+        "host_is_vm": "hypervisor" in flags,
         "kvm_exists": os.path.exists("/dev/kvm"),
         "kvm_accessible": os.access("/dev/kvm", os.R_OK | os.W_OK),
     }
@@ -173,6 +177,7 @@ def _apply_system(facts: Facts, info: dict) -> None:
                               for name, v in (info.get("features") or {}).items()}
     facts.kvm_exists = info.get("kvm_exists")
     facts.kvm_accessible = info.get("kvm_accessible")
+    facts.host_is_vm = info.get("host_is_vm")
 
 
 def _qemu_found() -> bool:

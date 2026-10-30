@@ -21,6 +21,7 @@ DefaultDirName={autopf}\Sysadmin Career
 DefaultGroupName=Sysadmin Career
 DisableProgramGroupPage=yes
 UninstallDisplayIcon={app}\SysadminCareer.exe
+SetupIconFile=..\icons\icon.ico
 OutputDir=..\..\dist
 OutputBaseFilename=SysadminCareer-Setup-{#GameVersion}
 Compression=lzma2/max
