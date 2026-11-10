@@ -192,3 +192,63 @@ def test_bad_manifest_rejected(release_server):
     (folder / "manifest.json").write_text(json.dumps({"files": {"evil.exe": {"size": 1, "sha256": ""}}}))
     with pytest.raises(ValueError):
         download.fetch_manifest(url)
+
+
+class _StallingHandler(_QuietHandler):
+    """Like GitHub's file servers on a bad day: the first connection for the
+    image sends half of it, then goes silent. Later connections may ask to
+    resume (HTTP Range) and get the rest straight away."""
+    stalled = threading.Event()
+    range_requests: list = []
+
+    def do_GET(self):
+        path = self.translate_path(self.path)
+        if not path.endswith(config.BASE_IMAGE_NAME):
+            return super().do_GET()
+        data = open(path, "rb").read()
+        start = 0
+        if self.headers.get("Range"):
+            start = int(self.headers["Range"].split("=")[1].rstrip("-"))
+            self.range_requests.append(start)
+            self.send_response(206)
+            self.send_header("Content-Range", f"bytes {start}-{len(data) - 1}/{len(data)}")
+        else:
+            self.send_response(200)
+        self.send_header("Content-Length", str(len(data) - start))
+        self.end_headers()
+        if not self.stalled.is_set():
+            self.stalled.set()
+            self.wfile.write(data[:len(data) // 2])
+            self.wfile.flush()
+            threading.Event().wait(10)            # silence (longer than the stall timeout)
+            return
+        self.wfile.write(data[start:])
+
+
+def test_stalled_download_resumes_on_a_new_connection(release_server, tmp_path, monkeypatch):
+    url, folder, contents = release_server
+    monkeypatch.setattr(download, "STALL_SECONDS", 1)
+    _StallingHandler.stalled.clear()
+    _StallingHandler.range_requests.clear()
+    handler = functools.partial(_StallingHandler, directory=str(folder))
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        target = tmp_path / "images"
+        download.download_all(f"http://127.0.0.1:{server.server_address[1]}/", target)
+        image = contents[config.BASE_IMAGE_NAME]
+        assert (target / config.BASE_IMAGE_NAME).read_bytes() == image
+        assert _StallingHandler.range_requests == [len(image) // 2]   # resumed, not restarted
+    finally:
+        server.shutdown()
+
+
+def test_partial_download_is_kept_for_next_time(release_server, tmp_path):
+    """Quitting mid-download keeps the .part file; the next try continues it."""
+    url, _, contents = release_server
+    image = contents[config.BASE_IMAGE_NAME]
+    target = tmp_path / "images"
+    target.mkdir()
+    (target / (config.BASE_IMAGE_NAME + ".part")).write_bytes(image[:1000])
+    download.download_all(url, target)      # (this test server ignores Range: it restarts, still correct)
+    assert (target / config.BASE_IMAGE_NAME).read_bytes() == image
