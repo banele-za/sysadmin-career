@@ -3,11 +3,14 @@
 #   tests          the fast test suite, on Windows and on Linux
 #   windows        builds SysadminCareer-Setup-<version>.exe
 #   linux          builds SysadminCareer-<version>-x86_64.AppImage
+#   linux-kvm      the real VM test on Linux with KVM (fast mode), the way a
+#                  player's Linux PC runs it: distro QEMU, downloaded image
 #   release        only for version tags (git tag v0.3.0 && git push origin v0.3.0):
 #                  publishes both files as a GitHub Release
 #
 # Every run's files can be downloaded from the run's page under "Artifacts".
-# (The VM tests need the Linux image and minutes of booting, so they stay local.)
+# (The Windows VM test needs WHPX, which GitHub's Windows machines lack, so it
+# stays local.)
 
 name: build
 
@@ -35,6 +38,39 @@ jobs:
           python-version: "3.12"
       - run: pip install -r requirements.txt
       - run: python -m pytest tests --ignore=tests/test_vm.py --ignore=tests/test_game.py -q
+
+  linux-kvm:
+    needs: tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      # GitHub's Linux machines have /dev/kvm, but only root may use it.
+      # This rule opens it to every user, like the kvm group does on a desktop.
+      - name: Let the test user use KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          ls -l /dev/kvm
+      - name: Install QEMU from Ubuntu (what the checkup's "Install it" runs)
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq qemu-system-x86 qemu-utils
+      - run: pip install -r requirements.txt
+      - name: Download the image, as the game does on first launch
+        run: >
+          python -c "from client import config; from client.checkup import download;
+          download.download_all(config.IMAGE_RELEASE_URL, config.IMAGES_DIR, lambda d, t: None);
+          assert config.BASE_IMAGE.exists()"
+      - name: The checkup must choose fast mode
+        run: >
+          python -c "from client.checkup import checks, facts;
+          c = checks.evaluate(facts.gather());
+          print([(x.key, x.status) for x in c.checks]);
+          assert c.mode == 'fast', c.mode"
+      - name: Boot, reset and play every ticket (fast mode)
+        run: python -m pytest tests/test_vm.py -q -s -rs
 
   windows:
     needs: tests
