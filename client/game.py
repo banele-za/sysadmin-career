@@ -15,6 +15,8 @@ Events sent to the UI (the "type" field):
   term      {data}                   terminal output (base64)
   term_reset {}                      clear the terminal for a new ticket
   mentor    {text, needs_ack}        a mentor chat message
+  hint      {level, text, ...}       a hint the player paid for
+  story     {kind, pages}            the first-day intro or a promotion scene
   graded    {passed, checks, ...}    result of pressing Submit
   error     {text}
 """
@@ -28,7 +30,7 @@ import yaml
 
 from client import config
 from client.checkup import checks as checks_mod, download, facts as facts_mod, fixes, guides, report
-from client.engine import economy, grader, progression, tickets
+from client.engine import economy, grader, progression, story, tickets
 from client.save.db import SaveFile
 from client.ssh.bridge import TerminalBridge
 from client.vm import accel
@@ -87,6 +89,7 @@ class Game:
         while True:
             try:
                 await self._checkup_gate(error)
+                self._maybe_show_intro()          # read the story while the server boots
                 await self._start_vm()
                 break
             except Exception as e:
@@ -273,23 +276,31 @@ class Game:
         await self.terminal.close()
         self.emit({"type": "status", "text": "Preparing your next ticket..."})
 
-        # 1. Fresh system.  2. Roll params.  3. Break it.
+        # 1. Fresh system.  2. Roll params.  3. Break it.  4. The player's shell hook.
         await self.vm.reset()
         instance = tickets.instantiate(ticket)
-        await grader.run_break(await self.vm.root(), instance, TRACK)
+        root = await self.vm.root()
+        await grader.run_break(root, instance, TRACK)
+        await grader.prepare_player_shell(root)
 
         self.current, self.solved = instance, False
-        self.attempt_id = self.save.start_attempt(ticket.id, instance.seed, instance.values)
         character = self.cast.get(ticket.character, {})
+        met_before = self._met_before(ticket)
+        self.attempt_id = self.save.start_attempt(ticket.id, instance.seed, instance.values)
         self.emit({
             "type": "ticket",
             "id": ticket.id,
             "title": instance.text(ticket.title),
             "from": character.get("name", ticket.character),
             "role": character.get("role", ""),
+            "initials": character.get("initials", ticket.character[:2].upper()),
+            "color": character.get("color", "#8a909c"),
+            # "Gary has learned a new command": only once you know Gary.
+            "callback": instance.text(ticket.callback).strip() if ticket.callback and met_before else "",
             "narrative": instance.narrative,
             "guided": ticket.guided,
             "rewards": ticket.rewards,
+            **self._hint_info(),
         })
 
         # 4. Hand the terminal to the player.
@@ -315,15 +326,65 @@ class Game:
             "checks": [{"name": c.name, "pass": c.passed, "msg": c.msg} for c in result.checks],
         }
         if result.passed:
+            tier_before = progression.progress(self.tickets, self.save.solved_ticket_ids()).tier
             already = self.current.ticket.id in self.save.solved_ticket_ids()
-            xp, rep = economy.reward_for(self.current.ticket, already)
-            self.save.solve(self.attempt_id, xp, rep)
+            used_man = await grader.player_read_docs(await self.vm.root())
+            reward = economy.reward_for(self.current.ticket, already,
+                                        self.save.hints_used(self.attempt_id), used_man)
+            self.save.solve(self.attempt_id, reward.xp, reward.rep, used_man)
             self.solved = True
             self._stop_mentor()
-            event.update(xp=xp, rep=rep)
+            event.update(xp=reward.xp, rep=reward.rep, man_bonus=reward.man_bonus)
         self.emit(event)
         self.emit({"type": "status", "text": ""})
         self._emit_stats()
+        if result.passed:
+            tier_now = progression.progress(self.tickets, self.save.solved_ticket_ids()).tier
+            if tier_now > tier_before:
+                self._show_story("promotion", story.promotion(tier_now))
+
+    # ---- story -------------------------------------------------------------
+
+    def _maybe_show_intro(self) -> None:
+        if not self.save.get_setting("intro_seen", False):
+            self._show_story("intro", story.intro())
+            self.save.set_setting("intro_seen", True)
+
+    def _show_story(self, kind: str, pages: list[dict]) -> None:
+        if pages:
+            self.emit({"type": "story", "kind": kind, "pages": pages})
+
+    def _met_before(self, ticket: tickets.Ticket) -> bool:
+        """Has the player solved an earlier ticket from the same character?"""
+        solved = self.save.solved_ticket_ids()
+        return any(t.character == ticket.character and t.id in solved and t.id != ticket.id
+                   for t in self.tickets)
+
+    # ---- hints -------------------------------------------------------------
+
+    def hint(self) -> None:
+        """Reveal the next hint; it's paid out of this ticket's rep reward."""
+        if self.current is None or self.solved:
+            return
+        ticket = self.current.ticket
+        used = self.save.hints_used(self.attempt_id)
+        if used >= len(ticket.hints):
+            return
+        self.save.record_hint(self.attempt_id)
+        self.emit({"type": "hint", "level": used + 1,
+                   "text": self.current.text(ticket.hints[used]).strip(), **self._hint_info()})
+
+    def _hint_info(self) -> dict:
+        """Hint fields for the UI: how many are left and what the next one costs."""
+        ticket = self.current.ticket
+        used = self.save.hints_used(self.attempt_id)
+        already = ticket.id in self.save.solved_ticket_ids()
+        return {
+            "hints_total": 0 if ticket.guided else len(ticket.hints),   # the mentor guides tutorials
+            "hints_used": used,
+            "next_hint_cost": economy.next_hint_cost(ticket, already, used),
+            "reward_now": economy.reward_for(ticket, already, used).rep,
+        }
 
     # ---- mentor ------------------------------------------------------------
 

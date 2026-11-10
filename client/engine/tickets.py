@@ -49,11 +49,13 @@ class Ticket:
     narrative: str
     mentor_steps: list[MentorStep]
     mentor_intro: str | None        # one mentor message for an unguided ticket
+    callback: str | None            # shown if the player already had a ticket from this character
     hints: list[str]
     requires_reboot: bool
     time_limit: int | None
     rewards: dict
     folder: Path
+    chapter: int = 0                # position of `skill` in its tier's chapters.yaml list
 
     @property
     def guided(self) -> bool:
@@ -114,6 +116,7 @@ def load_ticket(yaml_path: Path) -> Ticket:
         narrative=data["narrative"],
         mentor_steps=steps,
         mentor_intro=data.get("mentor_intro"),
+        callback=data.get("callback"),
         hints=list(data.get("hints") or []),
         requires_reboot=bool(data.get("requires_reboot", False)),
         time_limit=data.get("time_limit"),
@@ -123,18 +126,38 @@ def load_ticket(yaml_path: Path) -> Ticket:
 
 
 def ladder_key(t: Ticket) -> tuple:
-    """The order the player meets tickets in: tier, then level, guided
-    tutorial before unguided practice, then id. See engine/progression.py."""
-    return (t.tier, t.level, not t.guided, t.id)
+    """The order the player meets tickets in: tier, then chapter (skill),
+    then level, guided tutorial before unguided practice, then id.
+    See engine/progression.py."""
+    return (t.tier, t.chapter, t.level, not t.guided, t.id)
+
+
+def load_chapters(path: Path) -> dict[int, list[str]]:
+    """chapters.yaml: tier -> its skills in teaching order ({} if missing)."""
+    if not path.exists():
+        return {}
+    return {int(tier): list(skills) for tier, skills in yaml.safe_load(path.read_text()).items()}
 
 
 def load_all(root: Path, track: str | None = None) -> list[Ticket]:
-    """Every ticket under `root` in ladder order, optionally for one track."""
+    """Every ticket under `root` in ladder order, optionally for one track.
+
+    The chapter order comes from chapters.yaml next to the tickets folder
+    (content/chapters.yaml for content/tickets/).
+    """
     tickets = [load_ticket(p) for p in root.rglob("ticket.yaml")]
     ids = [t.id for t in tickets]
     duplicates = {i for i in ids if ids.count(i) > 1}
     if duplicates:
         raise TicketError(f"duplicate ticket ids: {sorted(duplicates)}")
+    chapters = load_chapters(root.parent / "chapters.yaml")
+    if chapters:
+        for t in tickets:
+            skills = chapters.get(t.tier, [])
+            if t.skill not in skills:
+                raise TicketError(f"{t.id}: skill {t.skill!r} isn't a tier {t.tier} chapter "
+                                  f"in chapters.yaml ({skills})")
+            t.chapter = skills.index(t.skill)
     if track:
         tickets = [t for t in tickets if track in t.tracks]
     return sorted(tickets, key=ladder_key)

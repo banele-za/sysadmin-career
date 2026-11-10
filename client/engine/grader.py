@@ -17,6 +17,8 @@ from client.engine.tickets import TicketInstance
 from client.ssh import session
 
 LIB = config.CONTENT_DIR / "lib" / "common.sh"
+PLAYER_SHELL = config.CONTENT_DIR / "lib" / "player-shell.sh"
+READ_DOCS_MARKER = "/tmp/.sysadmin-game-read-docs"     # written by player-shell.sh
 
 
 @dataclass
@@ -66,6 +68,22 @@ async def run_grade(conn, instance: TicketInstance, track: str) -> GradeResult:
     script = instance.ticket.script("grade", track)
     result = await session.run_script(conn, _with_lib(script), instance.env)
     return parse_output(result.stdout, result.exit_status)
+
+
+async def prepare_player_shell(conn) -> None:
+    """Install the player's shell additions (see content/lib/player-shell.sh)."""
+    hook = PLAYER_SHELL.read_text(encoding="utf-8").replace("\r\n", "\n")
+    script = (f"cat > /etc/profile.d/sysadmin-game.sh <<'SYSADMIN_GAME_EOF'\n{hook}SYSADMIN_GAME_EOF\n"
+              f"rm -f {READ_DOCS_MARKER}\n")
+    result = await session.run_script(conn, script, {})
+    if result.exit_status != 0:
+        raise RuntimeError(f"couldn't prepare the player's shell:\n{result.stderr}")
+
+
+async def player_read_docs(conn) -> bool:
+    """Did the player run man or info since the ticket started?"""
+    result = await conn.run(f"test -e {READ_DOCS_MARKER}")
+    return result.exit_status == 0
 
 
 async def run_solution(conn, instance: TicketInstance, track: str) -> None:

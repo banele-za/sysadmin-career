@@ -255,6 +255,7 @@ Build a thin working slice first, then scale content; each milestone ends with s
 ## Open questions
 
 - [ ] Pull the current official RHCSA and SUSE SCA objective lists and build `objectives/*.yaml` from them.
+  *RHCSA done Nov 10, 2026 (EX200 for RHEL 10; `content/objectives/rhcsa.yaml`). Two findings: setgid shared directories are no longer an objective (perm-03 now maps to umask and permission problems), and containers are gone from the RHCSA, so Tier 3's container content would be beyond the exam. SUSE SCA comes with M6.*
 - [ ] Game title and art style.
 - [ ] Packaging tool for the Python client (PyInstaller, Briefcase or similar).
 - [ ] Where VM images are hosted for download, and bandwidth cost at Steam scale.

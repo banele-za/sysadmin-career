@@ -73,6 +73,7 @@ async def _play():
         assert ui.of_type("checkup")[0]["first_run"]
         await game.checkup_action("continue")
         await starting
+        assert ui.of_type("story")[0]["kind"] == "intro"     # first day, while the VM booted
         await _tutorial_files(game, ui)
         await _next(game, ui, "tut-02-perms", guided=True)
         await _tutorial_perms(game, ui)
@@ -84,10 +85,11 @@ async def _play():
         await _setgid(game, ui)
 
         stats = ui.of_type("stats")[-1]
-        total_xp, total_rep = 20 + 20 + 25 + 30 + 40, 5 + 5 + 8 + 10 + 15
+        total_xp, total_rep = 20 + 20 + 30 + 30 + 40, 5 + 5 + 6 + 10 + 15
         assert (stats["xp"], stats["rep"]) == (total_xp, total_rep)
         assert game.save.player().xp == total_xp           # persisted to SQLite
         assert stats["tier"] == "Sysadmin"                 # Tier 1 done
+        assert [s["kind"] for s in ui.of_type("story")] == ["intro", "promotion"]
     finally:
         await game.shutdown()
 
@@ -123,6 +125,7 @@ async def _follow_mentor(game: Game, ui: Recorder, commands: list[str], checked_
 async def _tutorial_files(game: Game, ui: Recorder):
     ticket = ui.of_type("ticket")[-1]
     assert ticket["id"] == "tut-01-files" and ticket["guided"]
+    assert ticket["hints_total"] == 0                    # tutorials have the mentor instead
     assert ui.of_type("stats")[-1]["tier"] == "Help Desk"
     await ui.wait_for(lambda: "admin@srv01" in ui.screen, 30, "shell prompt")
     codeword = game.current.values["codeword"]
@@ -147,6 +150,12 @@ async def _tutorial_perms(game: Game, ui: Recorder):
 
 async def _chmod(game: Game, ui: Recorder):
     v = game.current.values
+    # One hint (paid from this ticket's rep: 8 -> 6), then the manual (+5 XP).
+    assert ui.of_type("ticket")[-1]["hints_total"] == 3
+    game.hint()
+    hint = ui.of_type("hint")[-1]
+    assert hint["level"] == 1 and "ls -l" in hint["text"] and hint["reward_now"] == 6
+    await _type(game, ui, "man chmod | head -3")
     # A wrong answer first, Gary's style. Grading must say what's wrong.
     await _type(game, ui, f"sudo chmod 777 {v['dir']}/{v['report']} {v['dir']}/{v['script']}")
     await game.submit()
@@ -156,7 +165,8 @@ async def _chmod(game: Game, ui: Recorder):
     # The real fix, in letters this time (the solution uses numbers).
     await _type(game, ui, f"sudo chmod u=rw,g=r,o= {v['dir']}/{v['report']}")
     await _type(game, ui, f"sudo chmod u+x,g-w {v['dir']}/{v['script']}")
-    await _submit_passes(game, ui, 25, 8)
+    await _submit_passes(game, ui, 25 + 5, 6)
+    assert ui.of_type("graded")[-1]["man_bonus"] == 5
 
 
 async def _owner(game: Game, ui: Recorder):

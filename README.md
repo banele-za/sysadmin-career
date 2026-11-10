@@ -4,8 +4,10 @@ A desktop game that teaches Linux administration (RHCSA / SUSE SCA style
 objectives) by having you fix real problems on a hidden Linux VM.
 Design: [docs/DESIGN.md](docs/DESIGN.md). Done so far: Milestone 1 (vertical
 slice: Red Hat track, Windows, a five-ticket ladder) and Milestone 2 (first-run
-checkup, one-click fixes, BIOS guides, slow mode, image download). Milestone 3
-(Windows installer, Linux support) is in progress.
+checkup, one-click fixes, BIOS guides, slow mode, image download) and
+Milestone 3 (Windows installer, Linux AppImage, automatic builds; released as
+[v0.3.0](https://github.com/banele-za/sysadmin-career/releases/tag/v0.3.0)).
+Milestone 4 (the full Help Desk tier, story, hints) is in progress.
 
 ## Setup (Windows, development)
 
@@ -134,13 +136,22 @@ tests/
 Copy a folder under `content/tickets/`, rename it to the new id, and edit it.
 No Python changes needed. The ticket.yaml format is in docs/DESIGN.md, plus:
 
-- **The ladder.** Players meet tickets in order of tier, then `level`, with
+- **The ladder.** Players meet tickets in order of tier, then chapter (the
+  tier's skills, in the order of `content/chapters.yaml`), then `level`, with
   guided tickets before unguided ones (`engine/progression.py`). A ticket
   unlocks once every lower tier is done and every lower-level ticket of the
   same `skill`. Each skill must start with a guided level-1 ticket and climb
   one level at a time; `test_progression.py` enforces this, so a new ticket
-  can't throw beginners into the deep end. Teach a new command family with a
-  guided ticket first, then practise it unguided.
+  can't throw beginners into the deep end. A new skill needs a line in
+  `chapters.yaml` (the loader refuses unknown ones).
+- **`objectives`**: keys from `content/objectives/rhcsa.yaml`, Red Hat's
+  official EX200 list.
+- **`character`**: a key from `content/characters/cast.yaml`.
+- **`callback`** (optional): a line shown under the sender's name, but only
+  if the player already solved a ticket from the same character
+  ("Gary has learned a new command...").
+- **`hints`**: up to three, from a nudge to the full answer. Players pay for
+  them out of the ticket's reputation reward (`engine/economy.py`).
 
 - **Params** become upper-case environment variables (`group` -> `$GROUP`).
   Lists are space-separated (`for u in $USERS`). Names like `home` or `path`
@@ -157,6 +168,12 @@ No Python changes needed. The ticket.yaml format is in docs/DESIGN.md, plus:
   Prefer testing behaviour (`as_user alice "..."`) over exact modes, so
   every valid solution passes.
 - **`solution.sh`** is a reference fix used only by tests.
+- **"Find this" tasks** ask the player to save the answer to a file, which
+  `grade.sh` then checks: the end state, never the commands typed.
+
+Story text lives in `content/story/`: `intro.yaml` (first launch),
+`promotions.yaml` (finishing a tier) and `world.yaml` (the company's name,
+used as `{company}`).
 
 ## Licence
 

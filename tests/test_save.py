@@ -20,8 +20,8 @@ def test_solve_adds_rewards_and_persists(tmp_path):
 
 def test_repeat_solves_pay_less():
     ticket = next(t for t in tickets.load_all(config.TICKETS_DIR) if t.id == "perm-03-setgid-shared")
-    assert economy.reward_for(ticket, already_solved=False) == (40, 15)
-    assert economy.reward_for(ticket, already_solved=True) == (10, 3)
+    assert economy.reward_for(ticket, already_solved=False) == economy.Reward(40, 15)
+    assert economy.reward_for(ticket, already_solved=True) == economy.Reward(10, 3)
 
 
 def test_settings_roundtrip(tmp_path):
@@ -48,3 +48,33 @@ def test_version_1_save_is_migrated(tmp_path):
     assert save.player().xp == 60
     save.set_setting("checkup_seen", True)                 # the new table exists
     assert save.db.execute("PRAGMA user_version").fetchone()[0] == db_mod.SCHEMA_VERSION
+    assert save.hints_used(save.start_attempt("x", 1, {})) == 0   # ... and the v3 columns
+
+
+def test_hints_are_counted_per_attempt(tmp_path):
+    save = SaveFile(tmp_path / "save.db")
+    first = save.start_attempt("perm-01-chmod", 1, {})
+    assert save.record_hint(first) == 1
+    assert save.record_hint(first) == 2
+    assert save.hints_used(save.start_attempt("perm-01-chmod", 2, {})) == 0   # a new attempt starts clean
+    save.solve(first, xp=25, rep=4, used_man=True)
+    row = save.db.execute("SELECT hints_used, used_man FROM attempts WHERE id = ?", (first,)).fetchone()
+    assert (row["hints_used"], row["used_man"]) == (2, 1)
+
+
+# ---- hints and the man-page bonus (engine/economy.py) ----------------------------
+
+def test_hints_are_paid_from_the_ticket_reward():
+    ticket = next(t for t in tickets.load_all(config.TICKETS_DIR) if t.id == "perm-03-setgid-shared")
+    rep = [economy.reward_for(ticket, False, hints_used=n).rep for n in range(4)]
+    assert rep == [15, 11, 8, 0]                     # 100%, 75%, 50%, 0% of 15 (rounded)
+    costs = [economy.next_hint_cost(ticket, False, n) for n in range(3)]
+    assert costs == [4, 3, 8] and sum(costs) == 15   # the three prices add up to the whole reward
+    assert economy.reward_for(ticket, False, hints_used=3).xp == 40   # XP is never taken away
+
+
+def test_man_bonus_only_on_the_first_solve():
+    ticket = next(t for t in tickets.load_all(config.TICKETS_DIR) if t.id == "perm-03-setgid-shared")
+    first = economy.reward_for(ticket, already_solved=False, used_man=True)
+    assert (first.xp, first.man_bonus) == (40 + economy.MAN_BONUS_XP, economy.MAN_BONUS_XP)
+    assert economy.reward_for(ticket, already_solved=True, used_man=True).man_bonus == 0

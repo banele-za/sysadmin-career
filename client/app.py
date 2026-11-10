@@ -60,6 +60,9 @@ class Api:
     def mentor_ack(self):
         self._call(self._game.mentor_ack)
 
+    def hint(self):
+        self._call(self._game.hint)
+
     def term_input(self, data):
         self._call(self._game.term_input, data)
 
@@ -111,8 +114,10 @@ def main() -> None:
         background_color="#14161a",
     )
     emitter.window = window
-    # icon: used on Linux only (on Windows the .exe's own icon is shown).
-    webview.start(gui=host.WEBVIEW_GUI, debug=args.debug, icon=str(config.ICON))
+    # The window icon is for Linux only: on Windows the .exe's own icon is
+    # shown, and pywebview there accepts only .ico files (a PNG crashes it).
+    icon = str(config.ICON) if host.LINUX else None
+    webview.start(gui=host.WEBVIEW_GUI, debug=args.debug, icon=icon)
 
     # The window was closed: shut the VM down cleanly before exiting.
     logging.getLogger(__name__).info("window closed, shutting down VM")

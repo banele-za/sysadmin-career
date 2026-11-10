@@ -3,7 +3,7 @@ title: "Gary's report is open to the whole company"
 tier: 1
 skill: permissions
 level: 1
-objectives: [perm.ugo]
+objectives: [perm.ugo, fs.permission-problems]
 character: gary
 tracks: [rhel, suse]
 params:

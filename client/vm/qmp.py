@@ -32,14 +32,20 @@ class QMPClient:
         self._events: asyncio.Queue = asyncio.Queue()
         self._read_task: asyncio.Task | None = None
 
-    async def connect(self, port: int, timeout: float = 30.0) -> None:
-        """Connect to QEMU's QMP port, retrying while QEMU starts up."""
+    async def connect(self, port: int, timeout: float = 30.0, alive=None) -> None:
+        """Connect to QEMU's QMP port, retrying while QEMU starts up.
+
+        `alive`, if given, is a function telling whether QEMU still runs:
+        once it says no, there's no point waiting out the timeout.
+        """
         deadline = asyncio.get_running_loop().time() + timeout
         while True:
             try:
                 self._reader, self._writer = await asyncio.open_connection("127.0.0.1", port)
                 break
             except OSError:
+                if alive is not None and not alive():
+                    raise OSError("QEMU exited before its control port opened")
                 if asyncio.get_running_loop().time() > deadline:
                     raise
                 await asyncio.sleep(0.2)

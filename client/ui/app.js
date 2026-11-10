@@ -70,6 +70,32 @@ function formatMessage(text) {
   }).join("");
 }
 
+// The story modal shows one page at a time; "Next" turns the page, the last
+// page's button closes it. (The game keeps running behind it.)
+const story = { pages: [], index: 0 };
+
+function showStoryPage() {
+  const page = story.pages[story.index];
+  const last = story.index === story.pages.length - 1;
+  $("story-step").textContent = story.pages.length > 1 ? `${story.index + 1} / ${story.pages.length}` : "";
+  $("story-title").textContent = page.title;
+  $("story-text").innerHTML = formatMessage(page.text);
+  $("story-next").textContent = last ? "Let's go" : "Next";
+}
+
+// Reward line and Hint button, from the hint fields of a ticket or hint event.
+// Hints are paid out of the ticket's own rep reward (see engine/economy.py).
+function showHintState(e) {
+  if (e.rewards) $("ticket-reward").dataset.xp = e.rewards.xp;   // hint events don't repeat it
+  const xp = $("ticket-reward").dataset.xp;
+  let text = `Reward: ${xp} XP · ${e.reward_now} rep`;
+  if (e.hints_used) text += ` (after ${e.hints_used} hint${e.hints_used > 1 ? "s" : ""})`;
+  $("ticket-reward").textContent = text;
+  const left = e.hints_total - e.hints_used;
+  $("hint-btn").hidden = left <= 0;
+  $("hint-btn").textContent = `Hint ${e.hints_used + 1}/${e.hints_total} (−${e.next_hint_cost} rep)`;
+}
+
 function setOverlay(text, isError = false) {
   const overlay = $("overlay");
   overlay.hidden = !text;
@@ -211,8 +237,13 @@ const handlers = {
     $("ticket-title").textContent = e.title;
     $("ticket-from").textContent = e.from;
     $("ticket-role").textContent = e.role ? `(${e.role})` : "";
+    $("ticket-avatar").textContent = e.initials;
+    $("ticket-avatar").style.background = e.color;
+    $("ticket-callback").hidden = !e.callback;
+    $("ticket-callback").textContent = e.callback;
     $("ticket-narrative").textContent = e.narrative;
-    $("ticket-reward").textContent = `Reward: ${e.rewards.xp} XP · ${e.rewards.rep} rep`;
+    $("hints").innerHTML = "";
+    showHintState(e);
     $("checks").innerHTML = "";
     $("submit-btn").hidden = false;
     $("submit-btn").disabled = false;
@@ -241,6 +272,20 @@ const handlers = {
     msg.scrollIntoView({ behavior: "smooth", block: "start" });
   },
 
+  hint(e) {
+    const li = document.createElement("li");
+    li.innerHTML = formatMessage(e.text);
+    $("hints").appendChild(li);
+    showHintState(e);
+  },
+
+  story(e) {
+    story.pages = e.pages;
+    story.index = 0;
+    showStoryPage();
+    $("story").hidden = false;
+  },
+
   submit_ignored() { $("submit-btn").disabled = false; },
 
   mentor_step_done() {
@@ -255,6 +300,12 @@ const handlers = {
     banner.className = "banner " + (e.passed ? "pass" : "fail");
     banner.textContent = e.passed ? `Solved! +${e.xp} XP, +${e.rep} rep` : "Not quite yet:";
     list.appendChild(banner);
+    if (e.man_bonus) {
+      const li = document.createElement("li");
+      li.className = "banner pass bonus";
+      li.textContent = `Includes +${e.man_bonus} XP for reading the manual.`;
+      list.appendChild(li);
+    }
     for (const c of e.checks) {
       const li = document.createElement("li");
       li.className = c.pass ? "pass" : "fail";
@@ -264,6 +315,7 @@ const handlers = {
     $("submit-btn").disabled = false;
     if (e.passed) {
       $("submit-btn").hidden = true;
+      $("hint-btn").hidden = true;
       $("next-btn").hidden = false;
     }
   },
@@ -282,6 +334,16 @@ window.game = {
 $("submit-btn").onclick = () => {
   $("submit-btn").disabled = true;
   window.pywebview.api.submit();
+};
+$("hint-btn").onclick = () => window.pywebview.api.hint();
+$("story-next").onclick = () => {
+  if (story.index < story.pages.length - 1) {
+    story.index += 1;
+    showStoryPage();
+  } else {
+    $("story").hidden = true;
+    term.focus();
+  }
 };
 $("next-btn").onclick = () => {
   $("next-btn").hidden = true;

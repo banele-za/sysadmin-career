@@ -1,7 +1,24 @@
-# Display names for the `character:` field of tickets.
+# The people who send tickets (the `character:` field of a ticket).
+#
+#   name, role   shown on the ticket
+#   initials     the round badge next to the name
+#   color        that badge's colour
+#   gag          the running joke, for writers (see docs/DESIGN.md, "Story and cast")
 mentor:
   name: Senior Admin
   role: Your mentor
+  initials: SA
+  color: "#5fb3ff"
+  gag: Has seen everything twice. Slowly retiring as you level up.
 gary:
   name: Gary
   role: Accounting
+  initials: GA
+  color: "#f0b85a"
+  gag: Chmods things to 777 "to make it work", then deletes them.
+intern:
+  name: Sam
+  role: The Intern
+  initials: SM
+  color: "#b48cff"
+  gag: Writes cron jobs and scripts that fill the disk at 3 AM. Very enthusiastic.

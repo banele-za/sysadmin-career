@@ -1,0 +1,26 @@
+# Shown once, on the very first launch, while the server boots.
+# Each page: a title and short paragraphs (separated by a blank line).
+# {company} and {server} come from world.yaml; **bold** and `code` work.
+pages:
+  - title: "Day one"
+    text: |
+      Welcome to {company}, where the trucks are on time and the servers are... mostly up.
+
+      You're the new help desk hire. Your desk has a chair, a plant, and one Linux server: **{server}**.
+  - title: "Your mentor"
+    text: |
+      The senior admin will show you the ropes. They've kept {server} running for eleven years,
+      and they'd like to retire before it's twelve.
+
+      Tutorial tickets come with step-by-step help in the chat panel.
+  - title: "How it works"
+    text: |
+      Tickets arrive on the right. You fix the problem in the terminal on the left, on a real
+      Linux system, then press **Submit** and the server is checked.
+
+      Stuck? **Hints** cost part of a ticket's reputation. The manual (`man`) is free, and it pays.
+  - title: "One more thing"
+    text: |
+      Gary from Accounting has already sent two tickets. Nobody knows how.
+
+      Your server is nearly ready.

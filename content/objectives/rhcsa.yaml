@@ -1,17 +1,214 @@
-# RHCSA objective keys referenced by tickets.
-# PROVISIONAL: only the keys Milestone 1 needs, paraphrased from the public
-# EX200 objective list. Rebuild this file from the official list before
-# writing more content (open question in docs/DESIGN.md).
+# RHCSA (EX200) objective keys referenced by tickets.
+#
+# Source: the official "Study points for the exam" on
+# https://www.redhat.com/en/services/training/ex200-red-hat-certified-system-administrator-rhcsa-exam
+# (exam based on Red Hat Enterprise Linux 10), copied on 2026-11-10.
+# Titles are Red Hat's wording; keys are ours. Tickets list keys, never text
+# (tests/test_engine.py checks every key exists). When Red Hat changes the
+# list, update this file and fix any ticket the test then flags.
 
+# ---- Understand and use essential tools ---------------------------------------
 shell.commands:
   title: "Access a shell prompt and issue commands with correct syntax"
+  area: Understand and use essential tools
+shell.redirection:
+  title: "Use input-output redirection (>, >>, |, 2>, etc.)"
+  area: Understand and use essential tools
+text.grep:
+  title: "Use grep and regular expressions to analyze text"
+  area: Understand and use essential tools
+remote.ssh:
+  title: "Access remote systems using SSH"
+  area: Understand and use essential tools
+users.switch:
+  title: "Log in and switch users in multi-user targets"
+  area: Understand and use essential tools
+files.archive:
+  title: "Archive, compress, unpack, and uncompress files using tar, gzip, and bzip2"
+  area: Understand and use essential tools
+files.edit:
+  title: "Create and edit text files"
   area: Understand and use essential tools
 files.manage:
   title: "Create, delete, copy, and move files and directories"
   area: Understand and use essential tools
+files.links:
+  title: "Create hard and soft links"
+  area: Understand and use essential tools
 perm.ugo:
   title: "List, set, and change standard ugo/rwx permissions"
   area: Understand and use essential tools
-perm.shared-dirs:
-  title: "Create and configure set-GID directories for collaboration"
+docs.read:
+  title: "Locate, read, and use system documentation including man, info, and files in /usr/share/doc"
+  area: Understand and use essential tools
+
+# ---- Manage software ------------------------------------------------------------
+software.rpm-repos:
+  title: "Configure access to RPM repositories"
+  area: Manage software
+software.rpm-install:
+  title: "Install and remove RPM software packages"
+  area: Manage software
+software.flatpak-repos:
+  title: "Configure access to Flatpak repositories"
+  area: Manage software
+software.flatpak-install:
+  title: "Install and remove Flatpak software packages"
+  area: Manage software
+
+# ---- Create simple shell scripts ------------------------------------------------
+scripts.conditionals:
+  title: "Conditionally execute code (use of: if, test, [], etc.)"
+  area: Create simple shell scripts
+scripts.loops:
+  title: "Use Looping constructs (for, etc.) to process file, command line input"
+  area: Create simple shell scripts
+scripts.inputs:
+  title: "Process script inputs ($1, $2, etc.)"
+  area: Create simple shell scripts
+scripts.command-output:
+  title: "Processing output of shell commands within a script"
+  area: Create simple shell scripts
+
+# ---- Operate running systems ----------------------------------------------------
+system.power:
+  title: "Boot, reboot, and shut down a system normally"
+  area: Operate running systems
+system.boot-targets:
+  title: "Boot systems into different targets manually"
+  area: Operate running systems
+system.boot-interrupt:
+  title: "Interrupt the boot process in order to gain access to a system"
+  area: Operate running systems
+processes.kill:
+  title: "Identify CPU/memory intensive processes and kill processes"
+  area: Operate running systems
+processes.scheduling:
+  title: "Adjust process scheduling"
+  area: Operate running systems
+system.tuning:
+  title: "Manage tuning profiles"
+  area: Operate running systems
+logs.read:
+  title: "Locate and interpret system log files and journals"
+  area: Operate running systems
+logs.persist:
+  title: "Preserve system journals"
+  area: Operate running systems
+services.control:
+  title: "Start, stop, and check the status of network services"
+  area: Operate running systems
+remote.transfer:
+  title: "Securely transfer files between systems"
+  area: Operate running systems
+
+# ---- Configure local storage ----------------------------------------------------
+storage.partitions:
+  title: "List, create, and delete partitions on GPT disks"
+  area: Configure local storage
+storage.pv:
+  title: "Create and remove physical volumes"
+  area: Configure local storage
+storage.vg:
+  title: "Assign physical volumes to volume groups"
+  area: Configure local storage
+storage.lv:
+  title: "Create and delete logical volumes"
+  area: Configure local storage
+storage.mount-at-boot:
+  title: "Configure systems to mount file systems at boot by universally unique ID (UUID) or label"
+  area: Configure local storage
+storage.add-nondestructive:
+  title: "Add new partitions and logical volumes, and swap to a system non-destructively"
+  area: Configure local storage
+
+# ---- Create and configure file systems ----------------------------------------
+fs.create-mount:
+  title: "Create, mount, unmount, and use VFAT, ext4, and XFS file systems"
+  area: Create and configure file systems
+fs.nfs:
+  title: "Mount and unmount network file systems using NFS"
+  area: Create and configure file systems
+fs.autofs:
+  title: "Configure autofs"
+  area: Create and configure file systems
+fs.extend-lv:
+  title: "Extend existing logical volumes"
+  area: Create and configure file systems
+fs.permission-problems:
+  title: "Diagnose and correct file permission problems"
+  area: Create and configure file systems
+
+# ---- Deploy, configure, and maintain systems ----------------------------------
+deploy.scheduling:
+  title: "Schedule tasks using at, cron and systemd timer units"
+  area: Deploy, configure, and maintain systems
+deploy.services-boot:
+  title: "Start and stop services and configure services to start automatically at boot"
+  area: Deploy, configure, and maintain systems
+deploy.default-target:
+  title: "Configure systems to boot into a specific target automatically"
+  area: Deploy, configure, and maintain systems
+deploy.time:
+  title: "Configure time service clients"
+  area: Deploy, configure, and maintain systems
+deploy.packages:
+  title: "Install and update software packages from Red Hat Content Delivery Network, a remote repository, or from the local file system"
+  area: Deploy, configure, and maintain systems
+deploy.bootloader:
+  title: "Modify the system bootloader"
+  area: Deploy, configure, and maintain systems
+
+# ---- Manage basic networking ----------------------------------------------------
+net.addresses:
+  title: "Configure IPv4 and IPv6 addresses"
+  area: Manage basic networking
+net.resolution:
+  title: "Configure hostname resolution"
+  area: Manage basic networking
+net.services-boot:
+  title: "Configure network services to start automatically at boot"
+  area: Manage basic networking
+net.firewall-restrict:
+  title: "Restrict network access using firewalld and firewall-cmd"
+  area: Manage basic networking
+
+# ---- Manage users and groups ----------------------------------------------------
+users.accounts:
+  title: "Create, delete, and modify local user accounts"
   area: Manage users and groups
+users.passwords:
+  title: "Change passwords and adjust password aging for local user accounts"
+  area: Manage users and groups
+users.groups:
+  title: "Create, delete, and modify local groups and group memberships"
+  area: Manage users and groups
+users.privileged:
+  title: "Configure privileged access"
+  area: Manage users and groups
+
+# ---- Manage security ------------------------------------------------------------
+security.firewall:
+  title: "Configure firewall settings using firewall-cmd/firewalld"
+  area: Manage security
+security.default-perms:
+  title: "Manage default file permissions"
+  area: Manage security
+security.ssh-keys:
+  title: "Configure key-based authentication for SSH"
+  area: Manage security
+selinux.modes:
+  title: "Set enforcing and permissive modes for SELinux"
+  area: Manage security
+selinux.contexts:
+  title: "List and identify SELinux file and process context"
+  area: Manage security
+selinux.restore:
+  title: "Restore default file contexts"
+  area: Manage security
+selinux.ports:
+  title: "Manage SELinux port labels"
+  area: Manage security
+selinux.booleans:
+  title: "Use Boolean settings to modify system SELinux settings"
+  area: Manage security

@@ -3,7 +3,7 @@ title: "The finance folder is a mess again"
 tier: 2
 skill: permissions
 level: 3                      # position on the skill ladder
-objectives: [perm.ugo, perm.shared-dirs]
+objectives: [perm.ugo, security.default-perms, fs.permission-problems]
 character: gary
 tracks: [rhel, suse]
 params:

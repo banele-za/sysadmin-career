@@ -33,12 +33,18 @@
         <div id="ticket-empty" class="dim">Waiting for the server...</div>
         <div id="ticket-body" hidden>
           <h2 id="ticket-title"></h2>
-          <div class="from">From <b id="ticket-from"></b> <span id="ticket-role" class="dim"></span></div>
+          <div class="from">
+            <span id="ticket-avatar" class="avatar"></span>
+            <span>From <b id="ticket-from"></b> <span id="ticket-role" class="dim"></span></span>
+          </div>
+          <div id="ticket-callback" class="callback" hidden></div>
           <p id="ticket-narrative"></p>
           <div class="reward dim" id="ticket-reward"></div>
+          <ol id="hints" class="hints"></ol>
           <ul id="checks" class="checks"></ul>
           <div class="actions">
             <button id="submit-btn" class="primary">Submit</button>
+            <button id="hint-btn" hidden></button>
             <button id="next-btn" hidden>Next ticket →</button>
           </div>
         </div>
@@ -54,6 +60,19 @@
   </main>
 
   <!-- First-run checkup. Python fills it in (events: checkup, guide, ...). -->
+  <!-- Story scenes: the first-day intro and promotions. Pages from content/story/. -->
+  <div id="story" class="modal" hidden>
+    <div class="modal-box story-box">
+      <div class="dim story-step" id="story-step"></div>
+      <h1 id="story-title"></h1>
+      <div id="story-text" class="story-text"></div>
+      <div class="modal-actions">
+        <span class="spacer"></span>
+        <button id="story-next" class="primary">Next</button>
+      </div>
+    </div>
+  </div>
+
   <div id="checkup" class="modal" hidden>
     <div class="modal-box">
       <section id="checkup-main">

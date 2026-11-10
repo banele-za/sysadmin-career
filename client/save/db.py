@@ -2,7 +2,8 @@
 
 Tables:
   player   - one row: track, XP, reputation
-  attempts - every ticket attempt: which ticket, its seed and params, outcome
+  attempts - every ticket attempt: which ticket, its seed and params, outcome,
+             how many hints it took, whether the player read a man page
   settings - small key/value choices, e.g. "the player chose slow mode"
 
 Storing the seed means any attempt can be replayed with the same params.
@@ -15,7 +16,7 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS player (
@@ -46,6 +47,12 @@ CREATE TABLE IF NOT EXISTS settings (
     key   TEXT PRIMARY KEY,
     value TEXT NOT NULL                    -- JSON
 );
+""",
+    # Hints and the man-page bonus. M5's Gold mastery means "solved without
+    # hints", so every attempt remembers how many it used.
+    3: """
+ALTER TABLE attempts ADD COLUMN hints_used INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE attempts ADD COLUMN used_man   INTEGER NOT NULL DEFAULT 0;
 """,
 }
 
@@ -90,12 +97,23 @@ class SaveFile:
         self.db.execute("UPDATE attempts SET submits = submits + 1 WHERE id = ?", (attempt_id,))
         self.db.commit()
 
-    def solve(self, attempt_id: int, xp: int, rep: int) -> Player:
+    def record_hint(self, attempt_id: int) -> int:
+        """Count one more hint on this attempt; returns the new total."""
+        self.db.execute("UPDATE attempts SET hints_used = hints_used + 1 WHERE id = ?", (attempt_id,))
+        self.db.commit()
+        return self.hints_used(attempt_id)
+
+    def hints_used(self, attempt_id: int) -> int:
+        row = self.db.execute("SELECT hints_used FROM attempts WHERE id = ?", (attempt_id,)).fetchone()
+        return row["hints_used"]
+
+    def solve(self, attempt_id: int, xp: int, rep: int, used_man: bool = False) -> Player:
         """Mark an attempt solved and add its rewards, in one transaction."""
         with self.db:   # commits on success, rolls back on error
             self.db.execute(
-                "UPDATE attempts SET solved_at = ?, xp_awarded = ?, rep_awarded = ? WHERE id = ?",
-                (time.time(), xp, rep, attempt_id))
+                "UPDATE attempts SET solved_at = ?, xp_awarded = ?, rep_awarded = ?, used_man = ? "
+                "WHERE id = ?",
+                (time.time(), xp, rep, int(used_man), attempt_id))
             self.db.execute("UPDATE player SET xp = xp + ?, rep = rep + ? WHERE id = 1", (xp, rep))
         return self.player()
 

@@ -10,9 +10,11 @@ Two rules decide whether a ticket is unlocked:
      tutorial comes before the unguided ones. That's the design doc's
      "guided, then unguided" pattern.
 
-`tickets.load_all` already sorts tickets in this ladder order (see
-tickets.ladder_key), so "the next ticket" is simply the first unlocked one
-that isn't solved yet.
+`tickets.load_all` already sorts tickets in ladder order (see
+tickets.ladder_key): within a tier, skill by skill in the order of
+content/chapters.yaml. So "the next ticket" is simply the first unlocked
+one that isn't solved yet, and the player finishes one skill's tutorial
+and practice before the next skill begins.
 """
 
 from dataclasses import dataclass

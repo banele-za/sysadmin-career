@@ -40,6 +40,8 @@ from client.ssh import session
 from client.vm import accel as accel_mod, childproc, qemu
 from client.vm.qmp import QMPClient, QMPError
 
+QMP_START_TIMEOUT = 120.0     # seconds a still-running QEMU gets to open its control port
+
 
 def _spare_path(path: Path) -> Path:
     """overlay.qcow2 -> overlay-spare.qcow2 (same for the logs)."""
@@ -76,9 +78,19 @@ class _Machine:
             self.proc = childproc.start(qemu.command(spec), stdout=log, stderr=subprocess.STDOUT)
         qmp = QMPClient()
         try:
-            await qmp.connect(qmp_port)
+            # Generous timeout: the first start after a reboot can be slow
+            # while antivirus scans QEMU. A QEMU that has exited fails at once.
+            await qmp.connect(qmp_port, timeout=QMP_START_TIMEOUT,
+                              alive=lambda: self.proc.poll() is None)
         except OSError:
-            raise RuntimeError(f"QEMU failed to start: {self.qemu_log.read_text().strip()}")
+            code = self.proc.poll()
+            if code is None:                      # still running but never answered
+                self.proc.kill()
+                state = f"no answer after {QMP_START_TIMEOUT:.0f} s"
+            else:
+                state = f"exit code {code}"
+            output = self.qemu_log.read_text().strip() or "(QEMU printed nothing)"
+            raise RuntimeError(f"QEMU failed to start ({state}): {output}")
         self.qmp = qmp     # only once connected: stop() relies on that
 
     async def wait_for_boot(self, timeout: float) -> None:

@@ -3,6 +3,8 @@
 from collections import defaultdict
 from pathlib import Path
 
+import pytest
+
 from client import config
 from client.engine import progression, tickets
 
@@ -12,7 +14,7 @@ def make(id, tier=1, skill="perms", level=1, guided=False) -> tickets.Ticket:
     return tickets.Ticket(
         id=id, title=id, tier=tier, skill=skill, level=level, objectives=[], character="c",
         tracks=["rhel"], params={}, narrative="", mentor_steps=steps, mentor_intro=None,
-        hints=[], requires_reboot=False, time_limit=None, rewards={"xp": 1, "rep": 1},
+        callback=None, hints=[], requires_reboot=False, time_limit=None, rewards={"xp": 1, "rep": 1},
         folder=Path("."),
     )
 
@@ -68,6 +70,37 @@ def test_progress_counts_current_tier():
     assert (p.tier_name, p.solved, p.total) == ("Help Desk", 2, 4)
     p = progression.progress(LADDER, {"files-tut", "perm-tut", "perm-1", "perm-2"})
     assert (p.tier_name, p.solved, p.total) == ("Sysadmin", 0, 1)
+
+
+def write_ticket(root: Path, id: str, skill: str, guided: bool = False) -> None:
+    """A minimal ticket folder on disk (yaml + empty scripts)."""
+    folder = root / "tickets" / id
+    folder.mkdir(parents=True)
+    steps = "mentor_steps: [{say: hi}]\n" if guided else ""
+    (folder / "ticket.yaml").write_text(
+        f"id: {id}\ntitle: t\ntier: 1\nskill: {skill}\ncharacter: c\ntracks: [rhel]\n"
+        f"narrative: n\nrewards: {{xp: 1, rep: 1}}\n{steps}")
+    for script in ("break.sh", "grade.sh"):
+        (folder / script).write_text("")
+
+
+def test_chapters_keep_each_tutorial_next_to_its_practice(tmp_path):
+    # Two skills, each a tutorial plus a practice ticket. Without chapters the
+    # sort is by level, so both tutorials would come first.
+    (tmp_path / "chapters.yaml").write_text("1: [files, perms]\n")
+    write_ticket(tmp_path, "files-tut", "files", guided=True)
+    write_ticket(tmp_path, "files-1", "files")
+    write_ticket(tmp_path, "perm-tut", "perms", guided=True)
+    write_ticket(tmp_path, "perm-1", "perms")
+    order = [t.id for t in tickets.load_all(tmp_path / "tickets")]
+    assert order == ["files-tut", "files-1", "perm-tut", "perm-1"]
+
+
+def test_unknown_chapter_is_refused(tmp_path):
+    (tmp_path / "chapters.yaml").write_text("1: [files]\n")
+    write_ticket(tmp_path, "x", "fiels")
+    with pytest.raises(tickets.TicketError, match="fiels"):
+        tickets.load_all(tmp_path / "tickets")
 
 
 # ---- lint the real content -------------------------------------------------

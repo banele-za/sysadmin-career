@@ -1,0 +1,13 @@
+# Shown when the player finishes a tier and moves up to the next one.
+# Keyed by the NEW tier number. Same page format as intro.yaml.
+2:
+  - title: "Promoted: Sysadmin"
+    text: |
+      The senior admin slides a mug across your desk. It says SYSADMIN, and only slightly chipped.
+
+      "You've survived Gary, the Intern and a week of tickets. The help desk is yours to leave."
+  - title: "What changes"
+    text: |
+      Sysadmin tickets are vaguer: "the app is down" instead of "fix this file".
+
+      Look around before you change things. The mentor will step in less often from here.

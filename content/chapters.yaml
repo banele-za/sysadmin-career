@@ -1,0 +1,8 @@
+# The order each tier teaches its skills in ("chapters").
+#
+# The player finishes one skill's tickets (guided tutorial, then the
+# unguided ones, level by level) before the next skill starts. Every skill a
+# ticket uses must be listed under its tier; the loader refuses unknown ones,
+# which also catches typos in a ticket's `skill:`.
+1: [files, help, permissions, passwords, grep, logs, find, tar]
+2: [permissions]
