@@ -1,0 +1,45 @@
+id: files-02-links
+title: "Gary wants a shortcut (and a safety net)"
+tier: 1
+skill: files
+level: 2
+objectives: [files.links]
+character: gary
+tracks: [rhel, suse]
+params:
+  month: { pick: ["2026-09", "2026-10", "2026-11"] }
+  report: "/srv/accounting/reports/{month}.xlsx"
+  shortcut: /home/gary/latest-report
+  safety: "/srv/accounting/archive/{month}.xlsx"
+narrative: |
+  Gary writes: "Two things about this month's report, {report}:
+
+  1. I'm sick of typing that long path. I want {shortcut} to take me
+     straight to it. When next month's report comes, I'll just point the
+     shortcut somewhere else.
+
+  2. Last month somebody (not me!!) deleted the report by accident. I want a
+     second name for the file, {safety}, so the data survives even if
+     someone deletes the original name again. NOT a copy: a copy would get
+     out of date when I edit the report."
+
+  The files belong to Gary, so you'll need sudo.
+mentor_intro: |
+  New idea: **links**. Linux has two kinds, and Gary needs one of each.
+
+  A **soft link** (symbolic link) is a signpost: a tiny file that just
+  contains a path. Follow it and you arrive at the target. Delete the target
+  and the signpost points at nothing. Perfect for a shortcut you'll re-point.
+
+  A **hard link** is a second name for the very same data on disk. Edit the
+  file through either name and both see the change; delete one name and the
+  data lives on under the other. That's Gary's safety net.
+
+  Both are made with `ln`. Its man page says which option makes which kind.
+hints:
+  - "`man ln`: one option there makes a symbolic link; without it, `ln` makes a hard link. Argument order is: target first, then the new name."
+  - "Shortcut: `sudo ln -s {report} {shortcut}`. Safety net: `sudo ln {report} {safety}` (no -s). Check with `ls -li`: a hard link shares the inode number."
+  - "sudo ln -s {report} {shortcut}; sudo ln {report} {safety}"
+requires_reboot: false
+time_limit: null
+rewards: { xp: 30, rep: 10 }

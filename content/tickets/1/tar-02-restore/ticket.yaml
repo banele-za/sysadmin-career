@@ -1,0 +1,37 @@
+id: tar-02-restore
+title: "Gary deleted the ledger"
+tier: 1
+skill: archives
+level: 2
+objectives: [files.archive]
+character: gary
+tracks: [rhel, suse]
+params:
+  lost: { pick: [ledger-2026.csv, payroll-q4.csv, vendors.csv] }
+  backup: /backups/accounting-weekly.tar.gz
+narrative: |
+  Gary writes: "Don't be mad. I deleted /srv/accounting/{lost}. I was
+  tidying up. There's a weekly backup in {backup}, right?? Please put the
+  file back exactly where it was!
+
+  BUT I've been working on my other files since the backup, especially
+  notes.txt. Please don't bring back the old versions of those, I'd lose
+  a week of work."
+callback: "Gary, again, and he's 'tidying up' again."
+mentor_intro: |
+  When tar archives /srv/accounting, it stores the paths **without** the
+  leading slash: srv/accounting/notes.txt. That's a safety feature: unpacking
+  never overwrites your live system by accident; files land relative to
+  where you extract.
+
+  So restoring a file means two decisions: where to unpack (the root `/`,
+  if it should go back to its original place), and **which** files to
+  unpack. tar can extract just the ones you name, using the same path it
+  lists. Look inside first.
+hints:
+  - "List the archive first: `tar -tzvf {backup}`. Note the exact path of {lost}, without a leading slash."
+  - "Name that one path at the end of the extract command, and use -C / so it lands in its original place. sudo, because it's Gary's folder."
+  - "sudo tar -xzf {backup} -C / srv/accounting/{lost}"
+requires_reboot: false
+time_limit: null
+rewards: { xp: 30, rep: 10 }

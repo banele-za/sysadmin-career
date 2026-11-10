@@ -81,7 +81,13 @@ def test_every_ticket_instantiates_and_has_scripts():
     for t in tickets.load_all(config.TICKETS_DIR):
         inst = tickets.instantiate(t, seed=7)
         inst.env                                   # raises on reserved names
-        assert "{" not in inst.narrative.replace("${", "")
+        # Every {placeholder} in text the player sees must be a real param.
+        texts = [t.title, t.narrative, t.mentor_intro or "", t.callback or "", *t.hints,
+                 *[s.say for s in t.mentor_steps]]
+        for text in texts:
+            # ("${" is Bash, "{}" is find's -exec placeholder; both are fine.)
+            rendered = inst.text(text).replace("${", "").replace("{}", "")
+            assert "{" not in rendered, f"{t.id}: unfilled placeholder in {text[:60]!r}"
         assert t.script("break", "rhel") and t.script("grade", "rhel")
         assert t.script("solution", "rhel"), f"{t.id}: add a solution.sh for tests"
 

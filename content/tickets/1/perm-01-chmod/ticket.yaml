@@ -23,6 +23,7 @@ narrative: |
 
   Gary owns both files and {colleague} is in the accounting team.
   You'll need sudo, since the files aren't yours.
+callback: "Gary again. Since the links, he's been reading about Linux on his lunch break, which worries everyone."
 hints:
   - "Start with `ls -l {dir}`. Which of the three rwx groups is wrong on each file?"
   - "`chmod` sets permissions, either with letters (u/g/o, +/-) or numbers (r=4, w=2, x=1)."

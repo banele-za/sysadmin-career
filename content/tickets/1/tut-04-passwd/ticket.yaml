@@ -1,0 +1,65 @@
+id: tut-04-passwd
+title: "A new starter needs a password"
+tier: 1
+skill: passwords
+level: 1
+objectives: [users.passwords]
+character: mentor
+tracks: [rhel, suse]
+params:
+  newhire: { pick: [lena, omar, kim, ravi] }
+  max_days: { pick: [60, 90, 120] }
+narrative: |
+  {newhire} starts in Sales today. Their account exists, but it has no
+  password yet, so they can't log in. Resetting passwords is half of
+  help desk life; let's do it properly.
+
+mentor_steps:
+  - say: |
+      Accounts live in two files: /etc/passwd (names, home folders; anyone
+      can read it) and /etc/shadow (the scrambled passwords; only root).
+      `passwd -S` shows an account's password status:
+
+          sudo passwd -S {newhire}
+
+      The second word matters: **L** or **LK** means locked (no usable
+      password), **P** or **PS** means a password is set.
+  - say: |
+      Give {newhire} a first password. As root you can set anyone's, without
+      knowing the old one:
+
+          sudo passwd {newhire}
+
+      Type a password twice (nothing appears as you type, that's normal).
+      Pick anything; Linux may grumble that it's weak, but root gets the
+      final say.
+    check: passwd -S "$NEWHIRE" | awk '{exit !($2 == "P" || $2 == "PS")}'
+  - say: |
+      Good admins don't know users' passwords for long. Make {newhire}
+      choose their own at their first login, by marking the password expired:
+
+          sudo passwd -e {newhire}
+    # (a ">-" block, because YAML would read the ": " in "cut -d: -f3" as a key)
+    check: >-
+      test "$(getent shadow "$NEWHIRE" | cut -d: -f3)" = 0
+  - say: |
+      Company policy: passwords must be changed every {max_days} days. That's
+      **password aging**, and `chage` (change age) sets it. `-M` is the
+      maximum number of days a password stays valid:
+
+          sudo chage -M {max_days} {newhire}
+    check: >-
+      test "$(getent shadow "$NEWHIRE" | cut -d: -f5)" = "$MAX_DAYS"
+  - say: |
+      Check your work with `sudo chage -l {newhire}`: it lists every aging
+      setting in plain English. `man chage` explains the rest.
+
+      Press Submit when you're done.
+
+hints:
+  - "Each mentor message says what to do. Re-read the latest one."
+  - "sudo passwd {newhire}, then sudo passwd -e {newhire}, then sudo chage -M {max_days} {newhire}."
+  - "sudo passwd {newhire}; sudo passwd -e {newhire}; sudo chage -M {max_days} {newhire}"
+requires_reboot: false
+time_limit: null
+rewards: { xp: 20, rep: 5 }

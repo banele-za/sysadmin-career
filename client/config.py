@@ -43,7 +43,7 @@ PLAYER_USER = "admin"
 # A new image means a new release tag here. Override with SYSADMIN_GAME_IMAGE_URL.
 IMAGE_RELEASE_URL = os.environ.get(
     "SYSADMIN_GAME_IMAGE_URL",
-    "https://github.com/banele-za/sysadmin-career/releases/download/image-v1")
+    "https://github.com/banele-za/sysadmin-career/releases/download/image-v2")
 
 SAVE_DB = DATA_DIR / "save.db"
 OVERLAY_DISK = DATA_DIR / "vm" / "overlay.qcow2"   # thin layer on top of BASE_IMAGE

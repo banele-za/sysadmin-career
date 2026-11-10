@@ -1,0 +1,65 @@
+id: tut-07-find
+title: "Lost in the shared drive"
+tier: 1
+skill: find
+level: 1
+objectives: [shell.commands, files.manage]
+character: mentor
+tracks: [rhel, suse]
+params:
+  home_dir: /home/admin
+  share: /srv/share
+  lost: { pick: [budget-FINAL-v2-really-final.xlsx, team-photo-2019.jpg, wifi-password.txt] }
+narrative: |
+  /srv/share is the office's shared drive: eight years of folders inside
+  folders. Every day someone asks "where did my file go?". `find` searches
+  a whole folder tree in seconds, and it's one of the commands you'll use most.
+
+mentor_steps:
+  - say: |
+      `find` takes a starting folder and some tests. The most common test is
+      the name, with wildcards (in quotes, so the shell doesn't expand them):
+
+          find {share} -name "*.txt"
+
+      Try it. Some folders aren't yours to read, so you'll see "Permission
+      denied" lines too. Add `2>/dev/null` to throw those away: `/dev/null`
+      is a bin that swallows anything sent into it.
+  - say: |
+      Someone lost **{lost}**. Find where it is, and save the result into a
+      file:
+
+          find {share} -name "{lost}" 2>/dev/null > ~/found.txt
+    check: grep -qx "$(find "$SHARE" -name "$LOST" | head -n 1)" "$HOME_DIR/found.txt" 2>/dev/null
+  - say: |
+      The drive is full. Which files are bigger than 5 MB? `-size +5M`
+      means "more than 5 megabytes" (`-5M` would be less than):
+
+          find {share} -size +5M 2>/dev/null > ~/big-files.txt
+    check: >-
+      test "$(sort "$HOME_DIR/big-files.txt" 2>/dev/null)"
+      = "$(runuser -u admin -- find "$SHARE" -size +5M 2>/dev/null | sort)"
+  - say: |
+      `find` can also *do* something with every file it finds. `-exec` runs a
+      command, with `{}` standing for each file, and needs a `\;` at the end.
+      Collect every .log file into one folder:
+
+          mkdir ~/all-logs
+          find {share} -name "*.log" -exec cp {} ~/all-logs/ \; 2>/dev/null
+    check: >-
+      test "$(ls "$HOME_DIR/all-logs" 2>/dev/null | sort)"
+      = "$(runuser -u admin -- find "$SHARE" -name '*.log' -printf '%f\n' 2>/dev/null | sort)"
+  - say: |
+      Other tests you'll want: `-type f` (files only) or `-type d` (folders),
+      `-user gary` (owned by gary), `-mtime -7` (changed in the last 7 days),
+      `-iname` (name, ignoring case). Combine as many as you like.
+
+      Press Submit when you're done.
+
+hints:
+  - "Each mentor message says what to do. Re-read the latest one."
+  - "find FOLDER TEST... : -name \"pattern\", -size +5M, -exec cp {} DEST \\;  Add 2>/dev/null to hide permission errors."
+  - "find {share} -name \"{lost}\" 2>/dev/null > ~/found.txt; find {share} -size +5M 2>/dev/null > ~/big-files.txt; mkdir ~/all-logs; find {share} -name \"*.log\" -exec cp {} ~/all-logs/ \\; 2>/dev/null"
+requires_reboot: false
+time_limit: null
+rewards: { xp: 20, rep: 5 }

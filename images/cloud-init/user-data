@@ -40,6 +40,8 @@ packages:
   - bash-completion
   - tree
   - acl          # getfacl/setfacl: ACLs are RHCSA material
+  - bzip2        # tar -j: the RHCSA names gzip AND bzip2
+  - info         # the RHCSA names man, info and /usr/share/doc
 
 runcmd:
   # Files written by cloud-init need the right SELinux label or sshd ignores them.

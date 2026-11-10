@@ -1,0 +1,27 @@
+id: find-01-owned
+title: "Sam's manager wants copies of everything Sam made"
+tier: 1
+skill: find
+level: 1
+objectives: [files.manage, shell.commands]
+character: intern
+tracks: [rhel, suse]
+params:
+  dest: { pick: [/root/sam-files, /root/intern-files, /root/sam-review] }
+narrative: |
+  Sam writes: "GREAT NEWS my internship got extended!!! 🎉 But my manager
+  wants a copy of everything I've made so far, 'for the review' (and 'just
+  in case'?). My files are all over the place: in the shared folders under
+  /srv, and in my home folder.
+
+  Could you put a COPY of every file I own (owner: **sam**), from /srv and
+  /home/sam, all together in one folder: {dest}? Don't move them, people
+  still use them!"
+callback: "Sam's message has more emojis than words."
+hints:
+  - "`find` has a test for the owner: `-user sam`. Add `-type f` for files only. Search both folders in one go: find /srv /home/sam ..."
+  - "Make the folder first (it's in /root, so sudo). Then let find copy each file with -exec cp {} {dest}/ \\;"
+  - "sudo mkdir {dest}; sudo find /srv /home/sam -user sam -type f -exec cp {} {dest}/ \\;"
+requires_reboot: false
+time_limit: null
+rewards: { xp: 25, rep: 8 }

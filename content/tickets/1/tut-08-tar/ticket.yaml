@@ -1,0 +1,65 @@
+id: tut-08-tar
+title: "Pack it up: tar"
+tier: 1
+skill: archives
+level: 1
+objectives: [files.archive]
+character: mentor
+tracks: [rhel, suse]
+params:
+  home_dir: /home/admin
+  site: { pick: [website, intranet, wiki] }
+narrative: |
+  Backups, moving files between servers, sending logs to support: they all
+  start by packing many files into one. On Linux that's `tar` (from "tape
+  archive", it's that old). Your practice folder is ~/{site}.
+
+mentor_steps:
+  - say: |
+      tar's options are single letters. The main ones:
+
+          -c   create an archive      -t   list what's inside
+          -x   extract it             -f   the archive's file name (comes last!)
+          -v   verbose: show each file as it goes
+
+      Work from your home folder (`cd ~`) and have a look at {site}
+      with `ls -R {site}`. Click "Got it" when ready.
+  - say: |
+      Pack the folder into one archive file:
+
+          tar -cvf {site}.tar {site}
+
+      Read it as: create, verbose, into file {site}.tar, the folder {site}.
+    check: tar -tf "$HOME_DIR/$SITE.tar" 2>/dev/null | grep -q "^$SITE/index.html$"
+  - say: |
+      A .tar is the files side by side, not smaller. Add `-z` to squeeze it
+      with gzip (the usual name ends in .tar.gz):
+
+          tar -czvf {site}.tar.gz {site}
+
+      Compare sizes with `ls -lh {site}.tar*`.
+    check: tar -tzf "$HOME_DIR/$SITE.tar.gz" 2>/dev/null | grep -q "^$SITE/index.html$"
+  - say: |
+      Look inside without unpacking, with `-t`:
+
+          tar -tzvf {site}.tar.gz
+
+      Now unpack it somewhere else. `-C` says where to extract (the folder
+      must exist):
+
+          mkdir ~/restore
+          tar -xzvf {site}.tar.gz -C ~/restore
+    check: cmp -s "$HOME_DIR/$SITE/index.html" "$HOME_DIR/restore/$SITE/index.html"
+  - say: |
+      Other compressors: `-J` is xz (smaller, slower, .tar.xz) and `-j` is
+      bzip2 (.tar.bz2). The letters are hard to remember; `man tar` isn't.
+
+      Press Submit when you're done.
+
+hints:
+  - "Each mentor message says what to do. Re-read the latest one."
+  - "c = create, x = extract, t = list, z = gzip, v = verbose, f = file name (last). -C chooses where to extract."
+  - "cd ~; tar -cvf {site}.tar {site}; tar -czvf {site}.tar.gz {site}; mkdir ~/restore; tar -xzvf {site}.tar.gz -C ~/restore"
+requires_reboot: false
+time_limit: null
+rewards: { xp: 20, rep: 5 }

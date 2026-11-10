@@ -12,7 +12,8 @@ import base64
 import pytest
 
 from client import config
-from client.game import Game
+from client.engine import grader
+from client.game import TRACK, Game
 
 pytestmark = pytest.mark.skipif(not config.BASE_IMAGE.exists(), reason="base image not built")
 
@@ -75,19 +76,21 @@ async def _play():
         await starting
         assert ui.of_type("story")[0]["kind"] == "intro"     # first day, while the VM booted
         await _tutorial_files(game, ui)
-        await _next(game, ui, "tut-02-perms", guided=True)
-        await _tutorial_perms(game, ui)
-        await _next(game, ui, "perm-01-chmod")
-        await _chmod(game, ui)
-        await _next(game, ui, "perm-02-owner")
-        await _owner(game, ui)
-        await _next(game, ui, "perm-03-setgid-shared")
-        await _setgid(game, ui)
+
+        # The rest of the ladder, in the game's own order (content/chapters.yaml).
+        # A few tickets are played by typing, like a person; every other one
+        # with its reference solution.
+        typed = {"tut-02-perms": _tutorial_perms, "perm-01-chmod": _chmod,
+                 "perm-02-owner": _owner, "perm-03-setgid-shared": _setgid}
+        for ticket in game.tickets[1:]:
+            await _next(game, ui, ticket.id, guided=ticket.guided)
+            await typed.get(ticket.id, _solve_with_reference)(game, ui)
 
         stats = ui.of_type("stats")[-1]
-        total_xp, total_rep = 20 + 20 + 30 + 30 + 40, 5 + 5 + 6 + 10 + 15
-        assert (stats["xp"], stats["rep"]) == (total_xp, total_rep)
-        assert game.save.player().xp == total_xp           # persisted to SQLite
+        solved = [e for e in ui.of_type("graded") if e["passed"]]
+        assert len(solved) == len(game.tickets)
+        assert (stats["xp"], stats["rep"]) == (sum(e["xp"] for e in solved), sum(e["rep"] for e in solved))
+        assert game.save.player().xp == stats["xp"]         # persisted to SQLite
         assert stats["tier"] == "Sysadmin"                 # Tier 1 done
         assert [s["kind"] for s in ui.of_type("story")] == ["intro", "promotion"]
     finally:
@@ -101,6 +104,24 @@ async def _next(game: Game, ui: Recorder, ticket_id: str, guided: bool = False):
     ticket = ui.of_type("ticket")[-1]
     assert (ticket["id"], ticket["guided"]) == (ticket_id, guided)
     await ui.wait_for(lambda: ui.screen.count("admin@srv01") > shells, 30, "new shell")
+
+
+async def _solve_with_reference(game: Game, ui: Recorder):
+    """Apply the ticket's solution.sh; on a tutorial, also click every "Got it"
+    and wait for the mentor to finish. Then Submit and expect full rewards."""
+    ticket = game.current.ticket
+    await grader.run_solution(await game.vm.root(), game.current, TRACK)
+    if ticket.guided:
+        done = lambda: any("Press Submit when you're ready" in m["text"] for m in ui.of_type("mentor")[-1:])
+        while not done():
+            last = ui.of_type("mentor")[-1:]
+            if last and last[0]["needs_ack"]:
+                game.mentor_ack()
+            await asyncio.sleep(0.5)
+    await game.submit()
+    graded = ui.of_type("graded")[-1]
+    assert graded["passed"], f"{ticket.id}: {graded['checks']}"
+    assert graded["xp"] >= ticket.rewards["xp"] and graded["rep"] == ticket.rewards["rep"]
 
 
 async def _submit_passes(game: Game, ui: Recorder, xp: int, rep: int):

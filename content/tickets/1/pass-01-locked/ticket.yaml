@@ -1,0 +1,28 @@
+id: pass-01-locked
+title: "Gary is locked out (again)"
+tier: 1
+skill: passwords
+level: 1
+objectives: [users.passwords]
+character: gary
+tracks: [rhel, suse]
+params:
+  temp: { pick: ["Spreadsheet-42", "Coffee-Break-7", "Ledger-2026"] }
+narrative: |
+  Gary writes: "I can't log in!! I tried my password a few times, then a
+  few more, then I asked Sam to try. Now it says my account is locked AND
+  something about it being expired?? Month-end is TOMORROW."
+
+  Get Gary back in:
+  - unlock his account
+  - his account was also set to expire yesterday: remove that expiry
+  - set the temporary password **{temp}** (you'll tell him by phone)
+  - make him choose his own password the next time he logs in
+callback: "It's Gary. Of course it's Gary."
+hints:
+  - "`sudo passwd -S gary` shows the lock. `man passwd` has an option to unlock; `man chage` has one for the account expiry date (-1 means never)."
+  - "Unlock with `sudo passwd -u gary` (or usermod -U). Remove the expiry with `sudo chage -E -1 gary`. Then `sudo passwd gary` and `sudo passwd -e gary`."
+  - "sudo passwd -u gary; sudo chage -E -1 gary; sudo passwd gary  (type {temp} twice); sudo passwd -e gary"
+requires_reboot: false
+time_limit: null
+rewards: { xp: 25, rep: 8 }

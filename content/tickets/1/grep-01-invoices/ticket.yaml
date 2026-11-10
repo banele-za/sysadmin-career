@@ -1,0 +1,33 @@
+id: grep-01-invoices
+title: "Which invoices failed for {customer}?"
+tier: 1
+skill: grep
+level: 1
+objectives: [text.grep, shell.redirection]
+character: gary
+tracks: [rhel, suse]
+params:
+  customer: { pick: [Northgate, Bluefin, Harrow & Sons] }
+  csv: /srv/accounting/invoices.csv
+  out: /home/admin/failed-invoices.txt
+  count_file: /home/admin/failed-count.txt
+narrative: |
+  Gary writes: "{customer} is on the phone, furious. They say some of their
+  invoices never went through. The billing system writes everything to
+  {csv}, but it's 400 lines and I don't do command lines.
+
+  I need:
+  - every FAILED invoice line for {customer} saved in {out}
+    (the whole line, as it is in the file)
+  - just the number of those lines in {count_file}
+
+  Careful, the system isn't consistent: sometimes it writes FAILED,
+  sometimes failed, sometimes Failed. They all count!"
+callback: "Gary has learned to say 'grep'. He pronounces it 'grape'."
+hints:
+  - "One grep can find the customer, a second grep (after a pipe |) can keep only the failed lines. Which grep option ignores upper and lower case?"
+  - "grep '{customer}' {csv} | grep -i failed  shows the lines. Add > {out} to save them; pipe into wc -l for the count."
+  - "grep '{customer}' {csv} | grep -i failed > {out}; wc -l < {out} > {count_file}"
+requires_reboot: false
+time_limit: null
+rewards: { xp: 25, rep: 8 }

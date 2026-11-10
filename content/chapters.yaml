@@ -4,5 +4,5 @@
 # unguided ones, level by level) before the next skill starts. Every skill a
 # ticket uses must be listed under its tier; the loader refuses unknown ones,
 # which also catches typos in a ticket's `skill:`.
-1: [files, help, permissions, passwords, grep, logs, find, tar]
+1: [files, help, permissions, passwords, grep, logs, find, archives]
 2: [permissions]

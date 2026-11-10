@@ -1,0 +1,81 @@
+id: tut-05-grep
+title: "The printer is haunted"
+tier: 1
+skill: grep
+level: 1
+objectives: [text.grep, shell.redirection]
+character: mentor
+tracks: [rhel, suse]
+params:
+  home_dir: /home/admin
+  log: /home/admin/printer.log
+  suspect: { pick: [gary, sam, priya] }
+narrative: |
+  Half the office says the printer is haunted. The other half blames Gary.
+  The printer keeps a log, and logs settle arguments. It's in ~/printer.log,
+  and it's long. Let's search it without reading every line.
+
+mentor_steps:
+  - say: |
+      `grep` prints only the lines that contain a word:
+
+          grep ERROR ~/printer.log
+
+      It's case-sensitive: "ERROR" and "error" are different. Try it, then
+      click "Got it".
+  - say: |
+      Printing to the screen is nice, but the boss wants a file. `>` sends a
+      command's output into a file instead of the screen (it replaces
+      whatever the file had before):
+
+          grep ERROR ~/printer.log > ~/problems.txt
+
+      `cat ~/problems.txt` to see it.
+    check: >-
+      test "$(head -n "$(grep -c ERROR "$LOG")" "$HOME_DIR/problems.txt" 2>/dev/null)"
+      = "$(grep ERROR "$LOG")"
+  - say: |
+      The warnings belong in the report too. `>>` *appends* to the end of a
+      file instead of replacing it:
+
+          grep WARN ~/printer.log >> ~/problems.txt
+    check: >-
+      test "$(cat "$HOME_DIR/problems.txt" 2>/dev/null)"
+      = "$(grep ERROR "$LOG"; grep WARN "$LOG")"
+  - say: |
+      Now, is it really Gary? A **pipe** `|` feeds one command's output into
+      the next command. `wc -l` counts lines. So this counts the log lines
+      that mention {suspect}:
+
+          grep {suspect} ~/printer.log | wc -l
+
+      Save that number into ~/{suspect}-count.txt (add `> ~/{suspect}-count.txt`
+      to the end of the line).
+    check: >-
+      test "$(tr -d '[:space:]' < "$HOME_DIR/$SUSPECT-count.txt" 2>/dev/null)"
+      = "$(grep -c "$SUSPECT" "$LOG")"
+  - say: |
+      Commands report problems on a separate channel, **standard error**.
+      `>` doesn't catch it; `2>` does. You're not allowed into root's home
+      folder, so this fails:
+
+          ls /root
+
+      Send that error message into a file instead of the screen:
+
+          ls /root 2> ~/denied.txt
+    check: grep -q "Permission denied" "$HOME_DIR/denied.txt" 2>/dev/null
+  - say: |
+      Three grep options you'll use forever: `-i` ignores upper/lower case,
+      `-v` shows the lines that do NOT match, `-c` just counts. And `^word`
+      means "lines that start with word". `man grep` has the rest.
+
+      Press Submit when you're done.
+
+hints:
+  - "Each mentor message says what to do. Re-read the latest one."
+  - "> replaces a file, >> adds to its end, | feeds output into the next command, 2> catches error messages."
+  - "grep ERROR ~/printer.log > ~/problems.txt; grep WARN ~/printer.log >> ~/problems.txt; grep {suspect} ~/printer.log | wc -l > ~/{suspect}-count.txt; ls /root 2> ~/denied.txt"
+requires_reboot: false
+time_limit: null
+rewards: { xp: 20, rep: 5 }

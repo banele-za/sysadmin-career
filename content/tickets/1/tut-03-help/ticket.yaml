@@ -1,0 +1,80 @@
+id: tut-03-help
+title: "Nobody remembers every option"
+tier: 1
+skill: help
+level: 1
+objectives: [docs.read]
+character: mentor
+tracks: [rhel, suse]
+params:
+  home_dir: /home/admin
+  year: { pick: ["2025", "2026", "2027"] }
+  quarter: { pick: [q1, q2, q3, q4] }
+narrative: |
+  Here's the secret of every good admin: nobody remembers every option of
+  every command. We look them up. This server has a manual for almost
+  everything on it, and the real exams let you use it too.
+
+  Follow along in the chat. You'll find two answers in the manual and use them.
+
+mentor_steps:
+  - say: |
+      `man` opens a command's manual page. Try:
+
+          man mkdir
+
+      Inside a man page: arrow keys or Space to scroll, `/word` then Enter
+      to search for "word", `n` for the next match, and `q` to quit.
+      Open one now, have a look around, then press q.
+    check: test -e /tmp/.sysadmin-game-read-docs
+  - say: |
+      Your first answer. Make the nested folders **~/projects/{year}/{quarter}**
+      in one go. Plain `mkdir ~/projects/{year}/{quarter}` fails, because the
+      parent folders don't exist yet.
+
+      There's an option that creates the parents too. Most commands print a
+      short summary of their options with `--help`:
+
+          mkdir --help
+
+      Find that option, then make the folders.
+    check: test -d "$HOME_DIR/projects/$YEAR/$QUARTER"
+  - say: |
+      Man pages come in numbered **sections**: 1 is for commands, 5 for file
+      formats, 8 for admin commands. `passwd` is both a command and a file,
+      so there are two pages:
+
+          man 1 passwd      (the command that changes passwords)
+          man 5 passwd      (the format of the /etc/passwd file)
+
+      Each line of /etc/passwd has fields separated by colons. In `man 5 passwd`,
+      find which field number holds the user's **home directory**. Then write
+      just that number into a file, like this (with the real number):
+
+          echo NUMBER > ~/home-field.txt
+
+      The `>` sends a command's output into a file. More on that soon.
+    check: grep -qxE '[[:space:]]*6[[:space:]]*' "$HOME_DIR/home-field.txt" 2>/dev/null
+  - say: |
+      Two more ways to find help:
+
+      `man -k word` (or `apropos word`) searches all the manual pages'
+      descriptions, for when you don't know a command's name. Try
+      `man -k compress`.
+
+      `info` is a second manual system, used by some GNU tools for longer
+      guides: try `info tar` (q quits).
+
+      `/usr/share/doc` holds extra documentation that packages install:
+      READMEs, examples, licences. `ls /usr/share/doc` to see it.
+
+      From now on, reading a man page during a ticket earns you a small XP
+      bonus. Press Submit when you're ready.
+
+hints:
+  - "Each mentor message says what to do. Re-read the latest one."
+  - "For the folders, look for 'parents' in `mkdir --help`. For the field number, count the colon-separated fields in `man 5 passwd`."
+  - "mkdir -p ~/projects/{year}/{quarter}; echo 6 > ~/home-field.txt"
+requires_reboot: false
+time_limit: null
+rewards: { xp: 20, rep: 5 }

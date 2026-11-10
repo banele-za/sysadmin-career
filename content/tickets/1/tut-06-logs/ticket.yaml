@@ -1,0 +1,66 @@
+id: tut-06-logs
+title: "What happened last night?"
+tier: 1
+skill: logs
+level: 1
+objectives: [logs.read]
+character: mentor
+tracks: [rhel, suse]
+params:
+  home_dir: /home/admin
+  baduser: { pick: [oracle, postgres, test, ubnt] }
+  ip: { pick: [203.0.113.7, 198.51.100.23, 192.0.2.99] }
+  disk: { pick: [/mnt/nas, /mnt/backup-usb, /mnt/tape] }
+narrative: |
+  Two things happened overnight: somebody kept trying to log in to the
+  server, and the backup job failed. Nobody saw either. But the server
+  saw both, and it wrote everything down. Let's read its diary.
+
+mentor_steps:
+  - say: |
+      Linux keeps two kinds of logs:
+
+      **Text files in /var/log.** Most are only readable by root:
+
+          sudo ls /var/log
+          sudo tail /var/log/messages
+
+      `tail` shows the last 10 lines (`tail -n 50` for more, `tail -f` to
+      watch new lines arrive live, Ctrl+C to stop). `less` lets you scroll
+      through a whole file: `sudo less /var/log/messages`, q to quit.
+
+      **The systemd journal**, read with `journalctl`. More on that in a
+      minute. Click "Got it" when you've looked around.
+  - say: |
+      Login attempts go to /var/log/secure. Someone tried to log in many
+      times. Find the failed attempts:
+
+          sudo grep "Failed password" /var/log/secure
+
+      Which **username** were they trying? Write just that name into a file:
+
+          echo NAME > ~/intruder.txt
+    check: grep -qw "$BADUSER" "$HOME_DIR/intruder.txt" 2>/dev/null
+  - say: |
+      Services log to the journal. `-u` shows one service (a "unit"), and
+      `-e` jumps to the end:
+
+          sudo journalctl -u backup-job
+
+      The backup job says why it failed: a disk it needed wasn't there.
+      Write that disk's path (it starts with /mnt) into ~/missing-disk.txt.
+    check: grep -qF "$DISK" "$HOME_DIR/missing-disk.txt" 2>/dev/null
+  - say: |
+      More journalctl you'll need: `-p err` shows only errors,
+      `--since "1 hour ago"` limits the time, `-f` follows live like
+      `tail -f`, and `-b` means "since this boot".
+
+      Press Submit when you're done.
+
+hints:
+  - "Each mentor message says what to do. Re-read the latest one."
+  - "Failed logins: sudo grep \"Failed password\" /var/log/secure. The backup: sudo journalctl -u backup-job."
+  - "echo {baduser} > ~/intruder.txt; echo {disk} > ~/missing-disk.txt"
+requires_reboot: false
+time_limit: null
+rewards: { xp: 20, rep: 5 }

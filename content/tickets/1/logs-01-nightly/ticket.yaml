@@ -1,0 +1,26 @@
+id: logs-01-nightly
+title: "Sam's 3 AM report didn't happen"
+tier: 1
+skill: logs
+level: 1
+objectives: [logs.read, fs.permission-problems]
+character: intern
+tracks: [rhel, suse]
+params:
+  outdir: { pick: [/srv/reports, /srv/daily-reports, /var/reports] }
+narrative: |
+  Sam writes: "Good morning!!! So my nightly sales report job (it runs as
+  user **sam**, as the service **nightly-report**) didn't make a report
+  last night. Or the night before. I didn't change anything!!! Well, I
+  deleted some folders that looked empty. Can you see what's wrong? 🙏"
+
+  The job is the script /usr/local/bin/nightly-report. It's fixed when it
+  runs as sam without errors and produces its report.
+callback: "Sam again, with three exclamation marks in the subject line."
+hints:
+  - "Read what the service said: `sudo journalctl -u nightly-report`. The error message names a path."
+  - "The folder the report goes into is gone. Make it again, and make sure sam may write into it (chown)."
+  - "sudo mkdir {outdir}; sudo chown sam {outdir}   (then test: sudo -u sam /usr/local/bin/nightly-report)"
+requires_reboot: false
+time_limit: null
+rewards: { xp: 30, rep: 10 }

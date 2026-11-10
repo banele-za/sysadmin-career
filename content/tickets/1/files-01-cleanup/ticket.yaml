@@ -1,0 +1,36 @@
+id: files-01-cleanup
+title: "Sam copied an entire laptop into one folder"
+tier: 1
+skill: files
+level: 1
+objectives: [files.manage, shell.commands]
+character: intern
+tracks: [rhel, suse]
+params:
+  home_dir: /home/admin
+  dump: { pick: [old-laptop, usb-stick, desktop-copy] }
+  keep: { pick: [contacts.csv, passwords-NOT.txt, wifi-codes.txt] }
+narrative: |
+  Sam writes: "Hiii! I backed up my old laptop for you!! It's all in
+  ~/{dump}. Could you tidy it up? I need:
+
+  - a folder ~/{dump}/photos with all the .jpg files in it
+  - a folder ~/{dump}/docs with all the .pdf files in it
+  - the .tmp files deleted, they're junk
+  - a copy of {keep} in a new folder ~/backup (keep the original too!)
+
+  Thank you thank you!! 🎉"
+
+  Everything in ~/{dump} is already yours, so no sudo needed.
+mentor_intro: |
+  Tip for this one: you don't have to move files one by one. The shell
+  expands **wildcards**: `*` stands for "any characters", so `*.jpg` means
+  every file whose name ends in .jpg. Try `ls *.jpg` first to see what it
+  matches before you `mv` anything.
+hints:
+  - "Start with `cd ~/{dump}` and `ls`. You need two new folders first: `mkdir` can make both at once."
+  - "`mv *.jpg photos/` moves every .jpg in one go. `rm *.tmp` deletes the junk. For the backup: `mkdir ~/backup` then `cp`."
+  - "cd ~/{dump}; mkdir photos docs; mv *.jpg photos/; mv *.pdf docs/; rm *.tmp; mkdir ~/backup; cp {keep} ~/backup/"
+requires_reboot: false
+time_limit: null
+rewards: { xp: 25, rep: 8 }

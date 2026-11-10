@@ -1,0 +1,29 @@
+id: tar-01-etc
+title: "Back up /etc before tonight's patching"
+tier: 1
+skill: archives
+level: 1
+objectives: [files.archive]
+character: mentor
+tracks: [rhel, suse]
+params:
+  method: { pick: [gzip, xz] }
+  archive: { pick: [/root/etc-backup, /root/backups/etc-before-patching] }
+narrative: |
+  The senior admin writes: "I'm patching the server tonight. House rule:
+  before anyone touches the system, /etc gets backed up. That's where
+  nearly all of Linux's configuration lives.
+
+  Make me a tar archive of the whole /etc folder, compressed with
+  **{method}**, saved as {archive} plus the usual file ending for a
+  {method}-compressed tar archive. If the folder doesn't exist yet, make it.
+
+  Some files in /etc are only readable by root, so this is a sudo job."
+callback: "The senior admin, who has been burned before. Twice."
+hints:
+  - "tar's create option is -c, the file name goes after -f. gzip is -z (ending .tar.gz), xz is -J (ending .tar.xz)."
+  - "sudo tar -c(z or J)f FILE /etc. tar warns 'Removing leading /': that's normal and harmless."
+  - "gzip: sudo tar -czf {archive}.tar.gz /etc   ·   xz: sudo tar -cJf {archive}.tar.xz /etc  (sudo mkdir -p first if needed)"
+requires_reboot: false
+time_limit: null
+rewards: { xp: 25, rep: 8 }
